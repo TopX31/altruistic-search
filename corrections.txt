@@ -20,6 +20,7 @@ StGermain => St. Germain
 Addy => Addie
 
 # People they talk about
+Brendan Dooley => Brendan Dewley
 Zoran => Zohran
 Mandani => Mamdani
 
