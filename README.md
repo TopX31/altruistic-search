@@ -2,6 +2,8 @@
 
 A fan-made search engine for the Altruistic Righteousness podcast. Not affiliated with the show.
 
+**Live at https://searchaltright.net**
+
 Everything in this folder builds one page. Whenever a file here changes on GitHub, the site rebuilds and goes live by itself within a couple of minutes (see the **Actions** tab to watch it happen).
 
 ## What's in here
