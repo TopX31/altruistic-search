@@ -21,6 +21,7 @@ Addy => Addie
 
 # People they talk about
 Brendan Dooley => Brendan Dewley
+Mr. Dooley => Mr. Dewley
 Zoran => Zohran
 Mandani => Mamdani
 
