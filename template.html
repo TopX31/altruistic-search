@@ -66,11 +66,6 @@ details.tips ul { margin: 8px 0 0; padding-left: 18px; }
 details.tips code { background: var(--wash); color: var(--red-deep); padding: 1px 5px; border-radius: 3px; font-size: 13px; }
 .stats { font-size: 14px; color: var(--muted); margin: 18px 0 0; font-variant-numeric: tabular-nums; }
 
-/* Suggestions */
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.chip { border: 1.5px solid var(--red); color: var(--red); background: var(--paper); border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
-.chip:hover { background: var(--red); color: var(--paper); }
-
 /* Results */
 .summary { margin: 30px 0 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .summary .big { color: var(--red); }
@@ -196,7 +191,6 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
           </ul>
         </details>
         <p class="stats" id="stats"></p>
-        <div class="chips" id="chips" aria-label="Example searches"></div>
       </div>
       <div id="results" aria-live="polite"></div>
       <div id="landing"><h2 class="landing-head">episodes</h2><div class="dir" id="landing-dir"></div></div>
@@ -359,7 +353,6 @@ function renderResults() {
   const box = $("results");
   const hasQuery = state.terms.length > 0;
   $("landing").hidden = hasQuery;
-  $("chips").hidden = hasQuery;
   if (!hasQuery) { box.innerHTML = ""; return; }
   const list = sortResults(state.results);
   if (!list.length) {
@@ -465,7 +458,7 @@ document.querySelector("nav").addEventListener("click", (e) => {
 });
 
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-ep][data-seg], [data-open-ep], [data-toggle], .chip");
+  const t = e.target.closest("[data-ep][data-seg], [data-open-ep], [data-toggle]");
   if (!t) return;
   if (t.matches("[data-ep][data-seg]")) openReader(t.dataset.ep, t.dataset.seg);
   else if (t.matches("[data-open-ep]")) { readerTarget = null; openReader(t.dataset.openEp, null); }
@@ -473,7 +466,7 @@ document.addEventListener("click", (e) => {
     const n = Number(t.dataset.toggle);
     state.open.has(n) ? state.open.delete(n) : state.open.add(n);
     renderResults();
-  } else if (t.matches(".chip")) { $("q").value = t.dataset.q; runSearch(); }
+  }
 });
 document.addEventListener("keydown", (e) => {
   const row = e.target.closest(".dir-row");
@@ -486,8 +479,6 @@ window.addEventListener("hashchange", route);
   const words = EPS.reduce((n, e) => n + e.words, 0);
   const secs = EPS.reduce((n, e) => n + e.d, 0);
   $("stats").textContent = `${EPS.length} episodes · ${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}m of audio · ${words.toLocaleString()} words searchable`;
-  const examples = ["dark game changer", "earth 2", "smith card", "blind rank", "wakanda", "two-dime betsy", "cube man", "tourette", "zohran", "epstein + trump"];
-  $("chips").innerHTML = examples.map((q) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
   renderDir();
   route();
 })();
