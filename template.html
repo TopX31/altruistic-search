@@ -128,7 +128,14 @@ mark.hl {
 .dir-row:focus-visible { outline: 3px solid var(--red); outline-offset: -3px; }
 
 /* Transcript reader */
-.reader-head { margin-top: 24px; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+.reader-head { position: sticky; top: 0; z-index: 5; background: var(--paper); margin-top: 24px; padding: 10px 0; border-bottom: 1px solid var(--rule); display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+.find-nav { display: inline-flex; align-items: center; gap: 4px; }
+.find-nav button { border: 2px solid var(--rule); background: var(--paper); border-radius: 999px; width: 34px; height: 34px; font-weight: 800; cursor: pointer; color: var(--ink); line-height: 1; }
+.find-nav button:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+.find-nav button:disabled { opacity: 0.35; cursor: default; }
+.find-count { font-size: 14px; color: var(--muted); min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+mark.hl.current { outline: 3px solid var(--ink); outline-offset: 1px; }
+.lines .line { scroll-margin-top: 120px; }
 .reader-head h2 { margin: 0; font: 800 clamp(26px, 4.6vw, 36px)/1.05 var(--display); letter-spacing: -0.03em; text-transform: lowercase; text-wrap: balance; }
 .reader-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .reader-tools input { border: 2px solid var(--rule); border-radius: 999px; padding: 6px 14px; font-size: 15px; width: 220px; max-width: 100%; }
@@ -206,8 +213,13 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
       <div class="reader-head">
         <h2 id="reader-title"></h2>
         <div class="reader-tools">
-          <label class="sr" for="reader-find">Highlight words in this episode</label>
-          <input id="reader-find" type="search" placeholder="highlight in this episode" autocomplete="off">
+          <label class="sr" for="reader-find">Find words in this episode</label>
+          <input id="reader-find" type="search" placeholder="find in this episode" autocomplete="off">
+          <span class="find-nav">
+            <button type="button" id="find-prev" aria-label="Previous match" title="Previous match (Shift+Enter)">↑</button>
+            <span class="find-count" id="find-count" aria-live="polite"></span>
+            <button type="button" id="find-next" aria-label="Next match" title="Next match (Enter)">↓</button>
+          </span>
           <button class="btn" type="button" id="reader-back">back</button>
         </div>
       </div>
@@ -402,10 +414,11 @@ function openReader(n, segIdx) {
   $("reader-title").innerHTML = epLabel(ep);
   $("reader-meta").textContent = `${clock(ep.d)} long · ${ep.words.toLocaleString()} words · machine transcript`;
   $("reader-find").value = state.terms.length ? $("q").value : "";
-  renderLines();
+  renderLines("target");
 }
 let readerTarget = null, suppressHash = false;
-function renderLines() {
+let marks = [], markIdx = -1;
+function renderLines(jump) {
   const ep = readerEp;
   const terms = parseQuery($("reader-find").value);
   const res = terms.map((t) => matcher(t, $("whole").checked));
@@ -416,10 +429,31 @@ function renderLines() {
       <p>${res.length ? highlight(seg[1], res) : esc(seg[1])}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener" style="font-size:13px;font-weight:700">↗</a>` : ""}</p>
     </div>`;
   }).join("");
-  if (readerTarget != null) {
+  marks = [...$("lines").querySelectorAll("mark.hl")];
+  markIdx = -1;
+  if (jump === "first" && marks.length) { goToMatch(0); return; }
+  if (jump === "target" && readerTarget != null) {
     const el = document.getElementById("L" + readerTarget);
+    // the next match from the clicked moment becomes the "current" one
+    const i = marks.findIndex((m) => el && (el.contains(m) || (el.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING)));
+    if (i >= 0) { markIdx = i; marks[i].classList.add("current"); }
     if (el) requestAnimationFrame(() => el.scrollIntoView({ block: "center" }));
-  } else window.scrollTo(0, 0);
+  } else if (jump !== "none") window.scrollTo(0, 0);
+  updateFindCount();
+}
+function goToMatch(i) {
+  if (!marks.length) return updateFindCount();
+  if (markIdx >= 0 && marks[markIdx]) marks[markIdx].classList.remove("current");
+  markIdx = (i + marks.length) % marks.length;
+  const m = marks[markIdx];
+  m.classList.add("current");
+  m.scrollIntoView({ block: "center" });
+  updateFindCount();
+}
+function updateFindCount() {
+  const has = $("reader-find").value.trim().length > 0;
+  $("find-count").textContent = !has ? "" : marks.length ? `${markIdx >= 0 ? markIdx + 1 : 0} of ${marks.length}` : "no matches";
+  $("find-prev").disabled = $("find-next").disabled = marks.length < 2 && !(marks.length === 1 && markIdx < 0);
 }
 
 /* ---------- views ---------- */
@@ -444,7 +478,16 @@ $("q").addEventListener("input", () => { clearTimeout(debounce); debounce = setT
 $("search-form").addEventListener("submit", (e) => { e.preventDefault(); clearTimeout(debounce); runSearch(); });
 $("whole").addEventListener("change", runSearch);
 $("sort").addEventListener("change", renderResults);
-$("reader-find").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => { readerTarget = readerTarget; renderLines(); }, 220); });
+$("reader-find").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => renderLines("first"), 220); });
+$("reader-find").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  clearTimeout(debounce);
+  if (!marks.length) { renderLines("first"); return; }
+  goToMatch(markIdx + (e.shiftKey ? -1 : 1));
+});
+$("find-next").addEventListener("click", () => goToMatch(markIdx + 1));
+$("find-prev").addEventListener("click", () => goToMatch(markIdx < 0 ? marks.length - 1 : markIdx - 1));
 $("reader-back").addEventListener("click", () => { location.hash = lastView === "search" ? "" : lastView; if (lastView === "search") show("search"); });
 $("home").addEventListener("click", (e) => { e.preventDefault(); $("q").value = ""; runSearch(); history.replaceState(null, "", location.pathname + location.search); show("search"); $("q").focus(); });
 
