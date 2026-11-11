@@ -14,6 +14,7 @@ Everything in this folder builds one page. Whenever a file here changes on GitHu
 | `corrections.txt` | Misheard words to fix, e.g. `Akash => Aakash` | Yes |
 | `episodes.json` | YouTube link for each episode | Yes |
 | `titles.txt` | Display titles with characters Windows won't allow in file names (like `?`) | Rarely |
+| `static/` | Site icon (Safari tab, iPhone home screen) and the link-preview image | Only to change them |
 | `template.html` | The page design and search code | Only to change the site itself |
 | `build.py` | Combines everything into the site | No |
 | `.github/workflows/deploy.yml` | Tells GitHub to rebuild on every change | No |
