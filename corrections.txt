@@ -1,0 +1,20 @@
+# Corrections applied to every transcript when the site is built.
+# Your .srt files are never changed, so delete a line to undo it.
+#
+#   wrong => right          replaces whole words/phrases, ignoring capitals
+#   DELETE: some text       removes any line containing that text
+#
+# Lines starting with # are notes and are ignored.
+
+# Show name
+altruistic written action => Altruistic Righteousness
+Altruistic Right to Show => Altruistic Righteousness
+Altruistic Bragochunes => Altruistic Righteousness
+Welcome back to Altruism => Welcome back to Altruistic Righteousness
+altruistic righteousness => Altruistic Righteousness
+
+# Hosts
+Akash => Aakash
+
+# Lines Whisper made up over silence or music
+DELETE: For more information, visit www.fema.org

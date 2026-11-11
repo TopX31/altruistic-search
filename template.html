@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Altruistic Righteousness Search</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: one narrow column, wordmark top-left like the cover, search bar as the hero, results as a plain list. */
+  --red: #c4031a;          /* sampled from the cover art */
+  --red-deep: #9e0014;
+  --glint: #ffd9dd;
+  --paper: #ffffff;
+  --ink: #141112;
+  --muted: #6d6466;
+  --rule: #ecdfe1;
+  --wash: #fbf3f4;
+  --display: "Helvetica Neue", Helvetica, "Inter Tight", Arial, sans-serif;
+  --body: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); }
+body { font: 400 17px/1.55 var(--body); -webkit-font-smoothing: antialiased; }
+a { color: var(--red); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+
+.wrap { max-width: 880px; margin: 0 auto; padding: 28px 20px 64px; }
+
+/* Header */
+header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.wordmark { font: 800 clamp(34px, 6.4vw, 54px)/0.92 var(--display); letter-spacing: -0.035em; color: var(--red); text-decoration: none; text-transform: lowercase; }
+.wordmark span { display: block; }
+nav { display: flex; gap: 6px; flex-wrap: wrap; }
+nav button { background: none; border: 2px solid transparent; border-radius: 999px; padding: 6px 14px; font-weight: 700; text-transform: lowercase; cursor: pointer; color: var(--ink); }
+nav button:hover { border-color: var(--rule); }
+nav button[aria-current="page"] { background: var(--red); color: var(--paper); }
+
+/* Search */
+.search { margin-top: 26px; }
+.search form { display: flex; gap: 0; border: 3px solid var(--red); border-radius: 6px; overflow: hidden; }
+.search input[type="search"] { flex: 1; min-width: 0; border: 0; padding: 14px 16px; font-size: 20px; font-weight: 500; background: var(--paper); }
+.search input[type="search"]:focus { outline: none; }
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.search form:focus-within { box-shadow: 0 0 0 4px var(--glint); }
+.search .go { border: 0; background: var(--red); color: var(--paper); font-weight: 800; padding: 0 22px; cursor: pointer; text-transform: lowercase; font-size: 18px; }
+.search .go:hover { background: var(--red-deep); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-top: 10px; font-size: 14px; color: var(--muted); }
+.controls label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.controls input[type="checkbox"] { accent-color: var(--red); width: 16px; height: 16px; }
+.controls select { border: 1px solid var(--rule); border-radius: 4px; padding: 3px 6px; background: var(--paper); }
+details.tips { font-size: 14px; color: var(--muted); }
+details.tips summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+details.tips ul { margin: 8px 0 0; padding-left: 18px; }
+details.tips code { background: var(--wash); color: var(--red-deep); padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+.stats { font-size: 14px; color: var(--muted); margin: 18px 0 0; font-variant-numeric: tabular-nums; }
+
+/* Suggestions */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip { border: 1.5px solid var(--red); color: var(--red); background: var(--paper); border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.chip:hover { background: var(--red); color: var(--paper); }
+
+/* Results */
+.summary { margin: 30px 0 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.summary .big { color: var(--red); }
+.empty { margin-top: 28px; padding: 18px; background: var(--wash); border-radius: 6px; }
+.ep { border-top: 2px solid var(--ink); padding: 16px 0 6px; margin-top: 18px; }
+.ep-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ep-title { margin: 0; font: 800 22px/1.15 var(--display); letter-spacing: -0.02em; text-transform: lowercase; text-wrap: balance; }
+.ep-title button { all: unset; cursor: pointer; }
+.ep-title button:hover { color: var(--red); }
+.ep-title button:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+.ep-num { color: var(--red); }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.count b { color: var(--ink); }
+.hit { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+.hit:last-of-type { border-bottom: 0; }
+.ts { align-self: start; border: 0; background: var(--wash); color: var(--red-deep); font-weight: 700; font-size: 14px; border-radius: 4px; padding: 3px 0; cursor: pointer; font-variant-numeric: tabular-nums; text-align: center; width: 100%; }
+.ts:hover { background: var(--red); color: var(--paper); }
+.snip { margin: 0; overflow-wrap: anywhere; }
+.snip .yt { font-size: 13px; font-weight: 700; margin-left: 6px; white-space: nowrap; }
+.more { margin: 8px 0 4px; border: 0; background: none; color: var(--red); font-weight: 700; cursor: pointer; padding: 4px 0; }
+.more:hover { text-decoration: underline; }
+
+/* The shimmer */
+mark.hl {
+  color: #fff;
+  font-weight: 700;
+  padding: 0 0.18em;
+  margin: 0 -0.04em;
+  border-radius: 3px;
+  background-color: var(--red);
+  background-image: linear-gradient(105deg, transparent 0%, transparent 38%, rgba(255,255,255,0.85) 50%, transparent 62%, transparent 100%);
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  background-position: 160% 0;
+  text-shadow: 0 0 1px rgba(120,0,10,0.35);
+  animation: sheen 2.6s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+@keyframes sheen {
+  0%   { background-position: 160% 0; }
+  55%  { background-position: -60% 0; }
+  100% { background-position: -60% 0; }
+}
+@media (prefers-reduced-motion: reduce) { mark.hl { animation: none; background-image: none; } }
+
+/* Landing episode list */
+.landing-head { margin: 40px 0 0; font: 800 13px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
+.btn { border: 2px solid var(--red); background: var(--paper); color: var(--red); font-weight: 800; padding: 7px 16px; border-radius: 999px; cursor: pointer; text-transform: lowercase; text-decoration: none; display: inline-block; font-size: 15px; }
+.btn:hover { background: var(--wash); }
+
+/* Episode directory */
+.dir { margin-top: 26px; }
+.dir-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: baseline; padding: 14px 0; border-top: 1px solid var(--rule); cursor: pointer; }
+.dir-row:hover .dir-title { color: var(--red); }
+.dir-num { font: 900 26px/1 var(--display); color: var(--red); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.dir-title { font: 800 20px/1.2 var(--display); letter-spacing: -0.02em; text-transform: lowercase; }
+.dir-meta { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.dir-row:focus-visible { outline: 3px solid var(--red); outline-offset: -3px; }
+
+/* Transcript reader */
+.reader-head { margin-top: 24px; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+.reader-head h2 { margin: 0; font: 800 clamp(26px, 4.6vw, 36px)/1.05 var(--display); letter-spacing: -0.03em; text-transform: lowercase; text-wrap: balance; }
+.reader-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.reader-tools input { border: 2px solid var(--rule); border-radius: 999px; padding: 6px 14px; font-size: 15px; width: 220px; max-width: 100%; }
+.reader-tools input:focus { border-color: var(--red); outline: none; }
+.lines { margin-top: 18px; }
+.line { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 4px 0; border-radius: 4px; }
+.line p { margin: 0; }
+.line.target { background: var(--wash); box-shadow: -8px 0 0 var(--wash), 8px 0 0 var(--wash); }
+.line.target .ts { background: var(--red); color: var(--paper); }
+
+footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+footer p { margin: 0 0 6px; max-width: 65ch; }
+
+@media (max-width: 520px) {
+  .hit, .line { grid-template-columns: 62px 1fr; gap: 10px; }
+  .search .go { padding: 0 14px; }
+  .dir-row { grid-template-columns: 48px 1fr; }
+  .dir-meta { grid-column: 2; text-align: left; }
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="wordmark" href="#" id="home"><span>altruistic</span><span>righteousness</span></a>
+    <nav aria-label="Sections">
+      <button type="button" data-view="search" aria-current="page">search</button>
+      <button type="button" data-view="episodes">episodes</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- SEARCH VIEW -->
+    <section id="view-search">
+      <div class="search">
+        <form id="search-form" role="search">
+          <label class="sr" for="q">Search the transcripts</label>
+          <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="search every episode, e.g. two-dime betsy">
+          <button class="go" type="submit">search</button>
+        </form>
+        <div class="controls">
+          <label for="whole"><input id="whole" type="checkbox"> whole words only</label>
+          <label for="sort">sort
+            <select id="sort">
+              <option value="new">newest first</option>
+              <option value="old">oldest first</option>
+              <option value="most">most mentions</option>
+            </select>
+          </label>
+        </div>
+        <details class="tips">
+          <summary>how searching works</summary>
+          <ul>
+            <li>Searches look for the exact text you type, ignoring capitals. <code>digger</code> also finds "Digger Rockwell".</li>
+            <li>Join up to 10 topics with <code>+</code> to find episodes that mention all of them, e.g. <code>digger + magic johnson</code>.</li>
+            <li>Tick <b>whole words only</b> so <code>ian</code> doesn't match "villian". You can also use <code>~</code> as a forced space: <code>~ian~</code>.</li>
+            <li>Click a timestamp to read that moment in the full transcript.</li>
+          </ul>
+        </details>
+        <p class="stats" id="stats"></p>
+        <div class="chips" id="chips" aria-label="Example searches"></div>
+      </div>
+      <div id="results" aria-live="polite"></div>
+      <div id="landing"><h2 class="landing-head">episodes</h2><div class="dir" id="landing-dir"></div></div>
+    </section>
+
+    <!-- EPISODES VIEW -->
+    <section id="view-episodes" hidden>
+      <div class="dir" id="dir"></div>
+    </section>
+
+    <!-- READER VIEW -->
+    <section id="view-reader" hidden>
+      <div class="reader-head">
+        <h2 id="reader-title"></h2>
+        <div class="reader-tools">
+          <label class="sr" for="reader-find">Highlight words in this episode</label>
+          <input id="reader-find" type="search" placeholder="highlight in this episode" autocomplete="off">
+          <button class="btn" type="button" id="reader-back">back</button>
+        </div>
+      </div>
+      <p class="stats" id="reader-meta"></p>
+      <div class="lines" id="lines"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>A fan-made search for the Altruistic Righteousness podcast, hosted by Ethan St. Germain, Oscar Landry and Aakash Kesavarapu. Not affiliated with the show.</p>
+    <p>Transcripts are machine-generated, so expect misheard words and names. <a href="https://www.patreon.com/altruisticrighteousness">Support the show on Patreon</a>.</p>
+  </footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const EPS = DATA.episodes;
+
+/* ---------- prep ---------- */
+for (const ep of EPS) {
+  let full = " ";
+  ep.offs = [];
+  for (const seg of ep.s) { ep.offs.push(full.length); full += seg[1] + " "; }
+  ep.full = full;
+  ep.lower = full.toLowerCase();
+  ep.words = full.split(/\s+/).filter(Boolean).length;
+}
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const clock = (sec) => {
+  sec = Math.floor(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0");
+};
+const epLabel = (ep) => `<span class="ep-num">ep ${ep.n}</span> · ${esc(ep.t.toLowerCase())}`;
+const segAt = (ep, pos) => {
+  let lo = 0, hi = ep.offs.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ep.offs[mid] <= pos) lo = mid; else hi = mid - 1; }
+  return lo;
+};
+const ytLink = (ep, sec) => ep.yt ? `https://www.youtube.com/watch?v=${encodeURIComponent(ep.yt)}&t=${Math.max(0, Math.floor(sec) - 2)}s` : "";
+
+/* ---------- query parsing + matching ---------- */
+function parseQuery(q) {
+  return q.split("+")
+    .map((t) => t.trim().toLowerCase().replace(/[‘’]/g, "'").replace(/~/g, " ").replace(/\s+/g, " "))
+    .filter((t) => t.replace(/ /g, "").length >= 2)
+    .slice(0, 10);
+}
+function matcher(term, whole) {
+  const body = reEsc(term);
+  return new RegExp(whole ? `(?<![a-z0-9'])${body}(?![a-z0-9'])` : body, "g");
+}
+function findAll(text, re) {
+  re.lastIndex = 0;
+  const out = [];
+  let m;
+  while ((m = re.exec(text))) { out.push([m.index, m[0].length]); if (!m[0].length) re.lastIndex++; }
+  return out;
+}
+function highlight(text, res) {
+  const lower = text.toLowerCase();
+  let ranges = [];
+  for (const re of res) for (const r of findAll(lower, re)) ranges.push(r);
+  if (!ranges.length) return esc(text);
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const [s, l] of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && s <= last[0] + last[1]) last[1] = Math.max(last[1], s + l - last[0]);
+    else merged.push([s, l]);
+  }
+  let html = "", i = 0, k = 0;
+  for (const [s, l] of merged) {
+    html += esc(text.slice(i, s)) + `<mark class="hl" style="--d:${((k++ % 6) * 0.18).toFixed(2)}s">${esc(text.slice(s, s + l))}</mark>`;
+    i = s + l;
+  }
+  return html + esc(text.slice(i));
+}
+
+/* ---------- search ---------- */
+const state = { terms: [], res: [], results: [], open: new Set() };
+const SHOW = 4, MAX_EXPANDED = 400, WIN = 120;
+
+function runSearch() {
+  const q = $("q").value;
+  const whole = $("whole").checked;
+  state.terms = parseQuery(q);
+  state.res = state.terms.map((t) => matcher(t, whole));
+  state.open.clear();
+  if (!state.terms.length) { state.results = []; renderResults(); return; }
+
+  const results = [];
+  for (const ep of EPS) {
+    const per = state.res.map((re) => findAll(ep.lower, re));
+    if (per.some((a) => !a.length)) continue;
+    const hits = per.flat().sort((a, b) => a[0] - b[0]);
+    // Group nearby hits into one snippet so neighbouring snippets don't repeat text.
+    const groups = [];
+    for (const h of hits) {
+      const g = groups[groups.length - 1];
+      if (g && h[0] - g.end < WIN * 2 && h[0] - g.start < 420) g.end = Math.max(g.end, h[0] + h[1]);
+      else groups.push({ start: h[0], end: h[0] + h[1] });
+    }
+    // Work out each snippet's window, never overlapping the previous one.
+    let prevEnd = 0;
+    for (const g of groups) {
+      const full = ep.full;
+      let s = Math.max(prevEnd, g.start - WIN), e = Math.min(full.length, g.end + WIN);
+      if (s > 0) { const sp = full.indexOf(" ", s); if (sp !== -1 && sp < g.start) s = sp + 1; }
+      if (e < full.length) { const sp = full.lastIndexOf(" ", e); if (sp > g.end) e = sp; }
+      g.s = s; g.e = e; prevEnd = e;
+    }
+    results.push({ ep, total: hits.length, counts: per.map((a) => a.length), groups });
+  }
+  state.results = results;
+  renderResults();
+}
+
+function sortResults(list) {
+  const how = $("sort").value;
+  const out = list.slice();
+  if (how === "old") out.sort((a, b) => a.ep.n - b.ep.n);
+  else if (how === "most") out.sort((a, b) => b.total - a.total || b.ep.n - a.ep.n);
+  else out.sort((a, b) => b.ep.n - a.ep.n);
+  return out;
+}
+
+function snippetHTML(ep, g) {
+  const full = ep.full, s = g.s, e = g.e;
+  const seg = segAt(ep, g.start);
+  const sec = ep.s[seg][0];
+  const text = (s > 1 ? "…" : "") + full.slice(s, e).trim() + (e < full.length - 1 ? "…" : "");
+  const yt = ytLink(ep, sec);
+  return `<div class="hit">
+    <button class="ts" type="button" data-ep="${ep.n}" data-seg="${seg}" aria-label="Read from ${clock(sec)} in episode ${ep.n}">${clock(sec)}</button>
+    <p class="snip">${highlight(text, state.res)}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}</p>
+  </div>`;
+}
+
+function renderResults() {
+  const box = $("results");
+  const hasQuery = state.terms.length > 0;
+  $("landing").hidden = hasQuery;
+  $("chips").hidden = hasQuery;
+  if (!hasQuery) { box.innerHTML = ""; return; }
+  const list = sortResults(state.results);
+  if (!list.length) {
+    const multi = state.terms.length > 1;
+    box.innerHTML = `<div class="empty"><b>No matches for ${state.terms.map((t) => "“" + esc(t.trim()) + "”").join(" + ")}.</b><br>${multi ? "No single episode mentions all of those. Try fewer topics." : "Try a shorter phrase or a different spelling. The transcripts are machine-made, so names are sometimes misheard."}</div>`;
+    return;
+  }
+  const total = list.reduce((n, r) => n + r.total, 0);
+  let html = `<p class="summary"><span class="big">${total.toLocaleString()}</span> mention${total === 1 ? "" : "s"} across <span class="big">${list.length}</span> of ${EPS.length} episodes</p>`;
+  for (const r of list) {
+    const open = state.open.has(r.ep.n);
+    const shown = open ? r.groups.slice(0, MAX_EXPANDED) : r.groups.slice(0, SHOW);
+    const breakdown = state.terms.length > 1 ? " · " + state.terms.map((t, i) => `${esc(t.trim())} ${r.counts[i]}`).join(", ") : "";
+    html += `<article class="ep">
+      <div class="ep-head">
+        <h3 class="ep-title"><button type="button" data-open-ep="${r.ep.n}">${epLabel(r.ep)}</button></h3>
+        <span class="count"><b>${r.total}</b> mention${r.total === 1 ? "" : "s"}${breakdown}</span>
+      </div>
+      ${shown.map((g) => snippetHTML(r.ep, g)).join("")}
+      ${r.groups.length > SHOW ? `<button class="more" type="button" data-toggle="${r.ep.n}">${open ? "show fewer" : `show all ${r.groups.length} moments`}</button>` : ""}
+      ${open && r.groups.length > MAX_EXPANDED ? `<p class="count">Showing the first ${MAX_EXPANDED}. Add another word to narrow it down.</p>` : ""}
+    </article>`;
+  }
+  box.innerHTML = html;
+}
+
+/* ---------- episode directory ---------- */
+function renderDir() {
+  const list = EPS.slice().sort((a, b) => b.n - a.n);
+  $("dir").innerHTML = $("landing-dir").innerHTML = list.map((ep) => `
+    <div class="dir-row" role="button" tabindex="0" data-open-ep="${ep.n}">
+      <div class="dir-num">${ep.n}</div>
+      <div class="dir-title">${esc(ep.t.toLowerCase())}</div>
+      <div class="dir-meta">${clock(ep.d)} · ${ep.words.toLocaleString()} words</div>
+    </div>`).join("");
+}
+
+/* ---------- reader ---------- */
+let readerEp = null;
+function openReader(n, segIdx) {
+  const ep = EPS.find((e) => e.n === Number(n));
+  if (!ep) return;
+  readerEp = ep;
+  if (segIdx != null) readerTarget = Number(segIdx);
+  if (location.hash !== "#ep" + ep.n) { suppressHash = true; location.hash = "ep" + ep.n; }
+  show("reader");
+  $("reader-title").innerHTML = epLabel(ep);
+  $("reader-meta").textContent = `${clock(ep.d)} long · ${ep.words.toLocaleString()} words · machine transcript`;
+  $("reader-find").value = state.terms.length ? $("q").value : "";
+  renderLines();
+}
+let readerTarget = null, suppressHash = false;
+function renderLines() {
+  const ep = readerEp;
+  const terms = parseQuery($("reader-find").value);
+  const res = terms.map((t) => matcher(t, $("whole").checked));
+  $("lines").innerHTML = ep.s.map((seg, i) => {
+    const yt = ytLink(ep, seg[0]);
+    return `<div class="line${i === readerTarget ? " target" : ""}" id="L${i}">
+      <button class="ts" type="button" data-copy-seg="${i}" aria-label="Line at ${clock(seg[0])}">${clock(seg[0])}</button>
+      <p>${res.length ? highlight(seg[1], res) : esc(seg[1])}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener" style="font-size:13px;font-weight:700">↗</a>` : ""}</p>
+    </div>`;
+  }).join("");
+  if (readerTarget != null) {
+    const el = document.getElementById("L" + readerTarget);
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ block: "center" }));
+  } else window.scrollTo(0, 0);
+}
+
+/* ---------- views ---------- */
+let lastView = "search";
+function show(view) {
+  for (const v of ["search", "episodes", "reader"]) $("view-" + v).hidden = v !== view;
+  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
+  if (view !== "reader") { lastView = view; readerTarget = null; }
+}
+function route() {
+  if (suppressHash) { suppressHash = false; return; }
+  const h = location.hash.slice(1);
+  const m = /^ep(\d+)$/.exec(h);
+  if (m) openReader(m[1], null);
+  else if (h === "episodes") show("episodes");
+  else show("search");
+}
+
+/* ---------- events ---------- */
+let debounce;
+$("q").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(runSearch, 220); });
+$("search-form").addEventListener("submit", (e) => { e.preventDefault(); clearTimeout(debounce); runSearch(); });
+$("whole").addEventListener("change", runSearch);
+$("sort").addEventListener("change", renderResults);
+$("reader-find").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => { readerTarget = readerTarget; renderLines(); }, 220); });
+$("reader-back").addEventListener("click", () => { location.hash = lastView === "search" ? "" : lastView; if (lastView === "search") show("search"); });
+$("home").addEventListener("click", (e) => { e.preventDefault(); $("q").value = ""; runSearch(); history.replaceState(null, "", location.pathname + location.search); show("search"); $("q").focus(); });
+
+document.querySelector("nav").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-view]");
+  if (!b) return;
+  const v = b.dataset.view;
+  if (v === "search") { history.replaceState(null, "", location.pathname + location.search); show("search"); }
+  else if (location.hash === "#" + v) show(v);
+  else location.hash = v;
+});
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-ep][data-seg], [data-open-ep], [data-toggle], .chip");
+  if (!t) return;
+  if (t.matches("[data-ep][data-seg]")) openReader(t.dataset.ep, t.dataset.seg);
+  else if (t.matches("[data-open-ep]")) { readerTarget = null; openReader(t.dataset.openEp, null); }
+  else if (t.matches("[data-toggle]")) {
+    const n = Number(t.dataset.toggle);
+    state.open.has(n) ? state.open.delete(n) : state.open.add(n);
+    renderResults();
+  } else if (t.matches(".chip")) { $("q").value = t.dataset.q; runSearch(); }
+});
+document.addEventListener("keydown", (e) => {
+  const row = e.target.closest(".dir-row");
+  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openReader(row.dataset.openEp, null); }
+});
+window.addEventListener("hashchange", route);
+
+/* ---------- start ---------- */
+(function init() {
+  const words = EPS.reduce((n, e) => n + e.words, 0);
+  const secs = EPS.reduce((n, e) => n + e.d, 0);
+  $("stats").textContent = `${EPS.length} episodes · ${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}m of audio · ${words.toLocaleString()} words searchable`;
+  const examples = ["two-dime betsy", "run, don't walk", "tom cruise", "shane gillis", "digger + wuhan", "gooning"];
+  $("chips").innerHTML = examples.map((q) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
+  renderDir();
+  route();
+})();
+</script>
+</body>
+</html>
