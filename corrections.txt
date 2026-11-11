@@ -13,8 +13,17 @@ Altruistic Bragochunes => Altruistic Righteousness
 Welcome back to Altruism => Welcome back to Altruistic Righteousness
 altruistic righteousness => Altruistic Righteousness
 
-# Hosts
+# Hosts and regulars
 Akash => Aakash
+Kesavarabu => Kesavarapu
+StGermain => St. Germain
+Addy => Addie
+
+# People they talk about
+Zoran => Zohran
+Mandani => Mamdani
 
 # Lines Whisper made up over silence or music
 DELETE: For more information, visit www.fema.org
+# The spelling prompt from Transcribe.bat sometimes gets written into the transcript
+DELETE: a comedy podcast with Ethan St. Germain

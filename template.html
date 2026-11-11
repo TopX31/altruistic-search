@@ -173,7 +173,7 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
       <div class="search">
         <form id="search-form" role="search">
           <label class="sr" for="q">Search the transcripts</label>
-          <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="search every episode, e.g. two-dime betsy">
+          <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="search every episode, e.g. ethan tier">
           <button class="go" type="submit">search</button>
         </form>
         <div class="controls">
@@ -189,8 +189,8 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
         <details class="tips">
           <summary>how searching works</summary>
           <ul>
-            <li>Searches look for the exact text you type, ignoring capitals. <code>digger</code> also finds "Digger Rockwell".</li>
-            <li>Join up to 10 topics with <code>+</code> to find episodes that mention all of them, e.g. <code>digger + magic johnson</code>.</li>
+            <li>Searches look for the exact text you type, ignoring capitals. <code>brendan</code> also finds "Brendan's".</li>
+            <li>Join up to 10 topics with <code>+</code> to find episodes that mention all of them, e.g. <code>brendan + angie</code>.</li>
             <li>Tick <b>whole words only</b> so <code>ian</code> doesn't match "villian". You can also use <code>~</code> as a forced space: <code>~ian~</code>.</li>
             <li>Click a timestamp to read that moment in the full transcript.</li>
           </ul>
@@ -486,7 +486,7 @@ window.addEventListener("hashchange", route);
   const words = EPS.reduce((n, e) => n + e.words, 0);
   const secs = EPS.reduce((n, e) => n + e.d, 0);
   $("stats").textContent = `${EPS.length} episodes · ${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}m of audio · ${words.toLocaleString()} words searchable`;
-  const examples = ["two-dime betsy", "run, don't walk", "tom cruise", "shane gillis", "digger + wuhan", "gooning"];
+  const examples = ["altruistically righteous transition", "profile picture", "ethan tier", "brendan + angie", "game changer", "zohran", "epstein + trump", "bushwick"];
   $("chips").innerHTML = examples.map((q) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("");
   renderDir();
   route();

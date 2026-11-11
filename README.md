@@ -13,6 +13,7 @@ Everything in this folder builds one page. Whenever a file here changes on GitHu
 | `srt/` | One transcript per episode | Yes, add new ones here |
 | `corrections.txt` | Misheard words to fix, e.g. `Akash => Aakash` | Yes |
 | `episodes.json` | YouTube link for each episode | Yes |
+| `titles.txt` | Display titles with characters Windows won't allow in file names (like `?`) | Rarely |
 | `template.html` | The page design and search code | Only to change the site itself |
 | `build.py` | Combines everything into the site | No |
 | `.github/workflows/deploy.yml` | Tells GitHub to rebuild on every change | No |
@@ -35,7 +36,11 @@ wrong spelling => Right Spelling
 DELETE: a line Whisper made up
 ```
 
-Capitals don't matter and it only matches whole words. The .srt files are never changed, so deleting a line undoes it. Use the site's search to find mistakes: search the wrong and right spellings and compare the counts.
+Capitals don't matter and it only matches whole words (possessives like "Akash's" are included). The .srt files are never changed, so deleting a line undoes it. Use the site's search to find mistakes: search the wrong and right spellings and compare the counts.
+
+## Automatic clean-up
+
+When Whisper gets stuck and writes the same line over and over (or one word dozens of times in a row), the build trims it down to three repeats automatically. Nothing to do on your end.
 
 ## Adding YouTube links
 

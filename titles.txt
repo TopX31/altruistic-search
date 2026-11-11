@@ -1,0 +1,5 @@
+# Optional: display titles that can't be used in a file name
+# (Windows doesn't allow ? : * " < > | in file names).
+# Format:  episode number => title
+
+32 => WE HELP OUR INCARCERATED FAN ESCAPE?!!!???!
