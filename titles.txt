@@ -3,3 +3,4 @@
 # Format:  episode number => title
 
 32 => WE HELP OUR INCARCERATED FAN ESCAPE?!!!???!
+3 => Pooh Shiesty? I Pooh Shiesty's.
