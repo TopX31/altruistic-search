@@ -3,12 +3,12 @@
 
 Usage:  python build.py
 Reads every .srt in ./srt, applies ./corrections.txt, adds YouTube IDs from
-./episodes.json, and writes ./index.html from ./template.html.
+./episodes.json, and writes ./index.html (from ./template.html) plus ./data.js.
 
 Transcript filenames must contain "Episode <number> - <title>", e.g.
 "Episode 45 - Group Massage.srt" (underscores are fine too).
 """
-import json, re, sys
+import hashlib, json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -149,11 +149,14 @@ def main():
 
     episodes.sort(key=lambda e: e["n"])
     data = json.dumps({"episodes": episodes}, ensure_ascii=False, separators=(",", ":"))
-    data = data.replace("</", "<\\/")  # safe inside <script>
-    html = (ROOT / "template.html").read_text(encoding="utf-8").replace("/*__DATA__*/null", data)
+    # Transcripts go in their own file so the page itself stays small (fast link previews).
+    js = "window.AR_DATA=" + data + ";\n"
+    (ROOT / "data.js").write_text(js, encoding="utf-8")
+    version = hashlib.md5(js.encode("utf-8")).hexdigest()[:10]  # new name whenever data changes
+    html = (ROOT / "template.html").read_text(encoding="utf-8").replace("__DATA_VERSION__", version)
     (ROOT / "index.html").write_text(html, encoding="utf-8")
     print(f"Applied {total_changes} corrections, trimmed {total_trimmed} repeated lines")
-    print(f"Built index.html with {len(episodes)} episodes ({len(html) // 1024} KB)")
+    print(f"Built index.html ({len(html) // 1024} KB) and data.js with {len(episodes)} episodes ({len(js) // 1024} KB)")
 
 
 if __name__ == "__main__":
