@@ -31,6 +31,9 @@ Comtown => Cum Town
 Cumetown => Cum Town
 Comptown => Cum Town
 
+# Other podcasts
+Pot About List => Pod About List
+
 # Guests
 Kyle Pruh => Kyle Prue
 Kyle Pruw => Kyle Prue
