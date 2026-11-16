@@ -139,6 +139,25 @@ mark.hl {
 @media (prefers-reduced-motion: reduce) { mark.hl { animation: none; background-image: none; } }
 
 /* Landing episode list */
+/* Landing: latest episode, saved bits, recent episodes */
+.latest { margin-top: 36px; padding: 18px 22px 20px; background: var(--wash); border-radius: 12px; }
+.latest .landing-head { margin: 0 0 10px; }
+.latest-row { display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; align-items: center; }
+.latest-num { font: 900 clamp(48px, 9vw, 76px)/0.85 var(--display); color: var(--red); letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.latest-title { margin: 0; font: 800 clamp(20px, 3.6vw, 28px)/1.1 var(--display); letter-spacing: -0.025em; text-transform: lowercase; text-wrap: balance; }
+.latest .stats { margin: 5px 0 0; }
+.latest-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.latest-acts .btn { font-size: 14px; padding: 6px 14px; }
+.latest-acts .btn.solid { background: var(--red); color: var(--paper); }
+.latest-acts .btn.solid:hover { background: var(--red-deep); border-color: var(--red-deep); }
+.land-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 36px; }
+.land-head .landing-head { margin: 0; }
+.land-head a { font-size: 14px; font-weight: 700; }
+.land-list { margin-top: 10px; }
+.dir-title.bit-row { font: 700 17px/1.3 var(--body); letter-spacing: 0; text-transform: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dir-title.bit-row.named { font: 800 18px/1.25 var(--display); text-transform: lowercase; }
+.dir-title.bit-row.named::before { content: "★ "; color: var(--red); }
+.see-all { margin: 16px 0 0; }
 .landing-head { margin: 40px 0 0; font: 800 13px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
 .btn { border: 2px solid var(--red); background: var(--paper); color: var(--red); font-weight: 800; padding: 7px 16px; border-radius: 999px; cursor: pointer; text-transform: lowercase; text-decoration: none; display: inline-block; font-size: 15px; }
 .btn:hover { background: var(--wash); }
@@ -202,6 +221,9 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 footer p { margin: 0 0 6px; max-width: 65ch; }
 
 @media (max-width: 520px) {
+  .latest { padding: 16px 16px 18px; }
+  .latest-row { gap: 4px 14px; }
+  .dir-title.bit-row { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .hit, .line { grid-template-columns: 62px 1fr; gap: 10px; }
   .search .go { padding: 0 14px; }
   .dir-row { grid-template-columns: 48px 1fr; }
@@ -255,7 +277,13 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
         <p class="stats" id="stats"></p>
       </div>
       <div id="results" aria-live="polite"></div>
-      <div id="landing"><h2 class="landing-head">episodes</h2><div class="dir" id="landing-dir"></div></div>
+      <div id="landing">
+        <div id="latest"></div>
+        <div id="land-saved" hidden></div>
+        <div class="land-head"><h2 class="landing-head">recent episodes</h2></div>
+        <div class="dir land-list" id="landing-dir"></div>
+        <p class="see-all"><a class="btn" href="#episodes" id="browse-all">see all episodes →</a></p>
+      </div>
     </section>
 
     <!-- EPISODES VIEW -->
@@ -656,6 +684,7 @@ function toggleSave(n, seg) {
   updateSavedCount();
 }
 function updateSavedCount() {
+  renderLanding();
   const el = $("saved-n");
   el.hidden = !SAVED.length;
   el.textContent = SAVED.length;
@@ -721,15 +750,49 @@ function importSaved(file) {
   r.readAsText(file);
 }
 
+/* ---------- landing ---------- */
+function renderLanding() {
+  const ep = EPS.reduce((a, b) => (b.n > a.n ? b : a), EPS[0]);
+  const yt = ytLink(ep, 0);
+  $("latest").innerHTML = `<article class="latest">
+    <h2 class="landing-head">latest episode</h2>
+    <div class="latest-row">
+      <div class="latest-num">${ep.n}</div>
+      <div>
+        <h3 class="latest-title">${esc(ep.t.toLowerCase())}</h3>
+        <p class="stats">${clock(ep.d)} · ${ep.words.toLocaleString()} words</p>
+      </div>
+    </div>
+    <p class="latest-acts"><button class="btn solid" type="button" data-open-ep="${ep.n}">read transcript</button>${yt ? `<a class="btn" href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}</p>
+  </article>`;
+  const recent = SAVED.slice().sort((a, b) => b.at - a.at).slice(0, 3);
+  $("land-saved").hidden = !recent.length;
+  $("land-saved").innerHTML = !recent.length ? "" : `
+    <div class="land-head"><h2 class="landing-head">your saved bits</h2><a href="#saved">see all ${SAVED.length} →</a></div>
+    <div class="dir land-list">${recent.map((b) => {
+      const e = EPS.find((x) => x.n === b.n);
+      const seg = e ? segAtTime(e, b.t) : 0;
+      const text = e ? bitText(e, seg) : b.text;
+      return `<div class="dir-row" role="button" tabindex="0" ${e ? `data-ep="${e.n}" data-seg="${seg}"` : ""}>
+        <div class="dir-num">${b.n}</div>
+        <div class="dir-title bit-row${b.name ? " named" : ""}">${esc(b.name || text)}</div>
+        <div class="dir-meta">${clock(b.t)}</div>
+      </div>`;
+    }).join("")}</div>`;
+}
+
 /* ---------- episode directory ---------- */
 function renderDir() {
   const list = EPS.slice().sort((a, b) => b.n - a.n);
-  $("dir").innerHTML = $("landing-dir").innerHTML = list.map((ep) => `
+  const row = (ep) => `
     <div class="dir-row" role="button" tabindex="0" data-open-ep="${ep.n}">
       <div class="dir-num">${ep.n}</div>
       <div class="dir-title">${esc(ep.t.toLowerCase())}</div>
       <div class="dir-meta">${clock(ep.d)} · ${ep.words.toLocaleString()} words</div>
-    </div>`).join("");
+    </div>`;
+  $("dir").innerHTML = list.map(row).join("");
+  $("landing-dir").innerHTML = list.slice(1, 6).map(row).join("");   // latest has its own card
+  $("browse-all").textContent = `see all ${EPS.length} episodes →`;
 }
 
 /* ---------- reader ---------- */
@@ -860,7 +923,7 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   const row = e.target.closest(".dir-row");
-  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openReader(row.dataset.openEp, null); }
+  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); row.dataset.openEp ? openReader(row.dataset.openEp, null) : row.click(); }
 });
 window.addEventListener("hashchange", route);
 // Naming a bit: Enter or clicking away saves, Esc cancels.
@@ -868,7 +931,7 @@ function finishName(input, keep) {
   if (editingBit !== input.dataset.name) return;
   editingBit = null;
   const b = SAVED.find((x) => x.id === input.dataset.name);
-  if (b && keep) { b.name = input.value.trim().slice(0, 120); storeSaved(); }
+  if (b && keep) { b.name = input.value.trim().slice(0, 120); storeSaved(); renderLanding(); }
   renderSaved();
 }
 $("bits").addEventListener("keydown", (e) => {
