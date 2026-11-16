@@ -87,6 +87,13 @@ details.tips code { background: var(--wash); color: var(--red-deep); padding: 1p
 .summary { margin: 30px 0 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .summary .big { color: var(--red); }
 .empty { margin-top: 28px; padding: 18px; background: var(--wash); border-radius: 6px; }
+.close { margin-top: 34px; padding-top: 18px; border-top: 3px solid var(--red); }
+.close:first-child { margin-top: 30px; }
+.close-head { margin: 0; font: 800 22px/1.1 var(--display); letter-spacing: -0.02em; color: var(--red); }
+.close-note { margin: 8px 0 4px; font-size: 15px; line-height: 1.9; }
+.chip { font: inherit; font-size: 14px; font-weight: 700; color: var(--red); background: var(--paper); border: 2px solid var(--red); border-radius: 99px; padding: 2px 11px; margin: 0 4px 0 0; cursor: pointer; }
+.chip:hover, .chip:focus-visible { background: var(--red); color: #fff; }
+.chip small { font-weight: 500; opacity: 0.75; }
 .ep { border-top: 2px solid var(--ink); padding: 16px 0 6px; margin-top: 18px; }
 .ep-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .ep-title { margin: 0; font: 800 22px/1.15 var(--display); letter-spacing: -0.02em; text-transform: lowercase; text-wrap: balance; }
@@ -208,7 +215,8 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
         <details class="tips">
           <summary>how searching works</summary>
           <ul>
-            <li>Searches look for the exact text you type, ignoring capitals. <code>brendan</code> also finds "Brendan's".</li>
+            <li>Searches look for the text you type, ignoring capitals and punctuation. <code>brendan</code> also finds "Brendan's", and <code>dont</code> finds "don't".</li>
+            <li>Small typos are forgiven. If a word looks misspelt, similar spellings show up under <b>close matches</b>, e.g. <code>oscer</code> finds "Oscar".</li>
             <li>Join up to 10 topics with <code>+</code> to find episodes that mention all of them, e.g. <code>epstein + trump</code>.</li>
             <li>Tick <b>whole words only</b> so <code>ian</code> doesn't match "villian". You can also use <code>~</code> as a forced space: <code>~ian~</code>.</li>
             <li>Click a timestamp to read that moment in the full transcript.</li>
@@ -263,7 +271,7 @@ for (const ep of EPS) {
   ep.offs = [];
   for (const seg of ep.s) { ep.offs.push(full.length); full += seg[1] + " "; }
   ep.full = full;
-  ep.lower = full.toLowerCase();
+  ep.lower = full.toLowerCase().replace(/’/g, "'");
   ep.words = full.split(/\s+/).filter(Boolean).length;
 }
 const $ = (id) => document.getElementById(id);
@@ -289,9 +297,99 @@ function parseQuery(q) {
     .filter((t) => t.replace(/ /g, "").length >= 2)
     .slice(0, 10);
 }
-function matcher(term, whole) {
-  const body = reEsc(term);
-  return new RegExp(whole ? `(?<![a-z0-9'])${body}(?![a-z0-9'])` : body, "g");
+/* Forgiving matching.
+   1. Punctuation and capitals never matter: "dont" = "don't", "game changer" = "game-changer".
+   2. Words that look misspelt (5+ letters, barely or never said) also match close spellings
+      from the transcripts, shown separately under "close matches". */
+const B0 = "(?<![a-z0-9'])", B1 = "(?![a-z0-9'])";   // word edges
+const SEP_IN = "['\\-]?";                            // inside a word: dont = don't, tshirt = t-shirt
+const SEP_WORDS = "[^a-z0-9]{1,3}";                  // between words: space, comma, hyphen…
+const wordPat = (w) => [...w].map(reEsc).join(SEP_IN);
+const phrasePat = (s) => s.split(" ").map(wordPat).join(SEP_WORDS);
+const queryWords = (term) => term.replace(/'/g, "").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+
+let VOCAB = null;   // every word said across the episodes -> how many times
+function vocab() {
+  if (VOCAB) return VOCAB;
+  VOCAB = new Map();
+  for (const ep of EPS) for (let w of ep.lower.match(/[a-z0-9']+/g) || []) {
+    w = w.replace(/'/g, "");
+    if (w) VOCAB.set(w, (VOCAB.get(w) || 0) + 1);
+  }
+  return VOCAB;
+}
+// Typo distance (insert, delete, swap a letter, or flip two neighbours), giving up past max.
+function dist(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let pp = null, p = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const c = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      let v = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (pp && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, pp[j - 2] + 1);
+      c.push(v);
+      if (v < best) best = v;
+    }
+    if (best > max) return max + 1;
+    pp = p; p = c;
+  }
+  return p[b.length];
+}
+const closeCache = new Map();
+function closeWords(w, whole) {
+  const key = w + (whole ? "|w" : "");
+  if (closeCache.has(key)) return closeCache.get(key);
+  let out = [];
+  const V = vocab();
+  let seen = V.get(w) || 0;
+  if (!whole && seen < 3) for (const [v, c] of V) if (v !== w && v.includes(w)) { seen += c; if (seen >= 3) break; }
+  // only words that look misspelt: 5+ letters said fewer than 3 times, or 4 letters never said
+  if ((w.length >= 5 && seen < 3) || (w.length === 4 && seen === 0)) {
+    const max = w.length <= 8 ? 1 : 2;
+    let found = [];
+    for (const [v, c] of V) {
+      if (v === w || Math.abs(v.length - w.length) > max) continue;
+      const d = dist(w, v, max);
+      if (d <= max) found.push({ v, c, d, other: v[0] !== w[0] });
+    }
+    const common = found.filter((o) => o.c >= 2);
+    if (common.length) found = common;
+    const sameStart = found.filter((o) => !o.other);   // ethen -> ethan, not "then"
+    if (sameStart.length) found = sameStart;
+    found.sort((a, b) => a.d - b.d || a.other - b.other || b.c - a.c);
+    out = found.slice(0, 4).map((o) => o.v);
+    if (!V.has(w)) {                             // two words run together: cumtown -> cum town
+      let best = null, score = 0;
+      for (let i = 3; i <= w.length - 3; i++) {
+        const s = Math.min(V.get(w.slice(0, i)) || 0, V.get(w.slice(i)) || 0);
+        if (s >= 5 && s > score) { score = s; best = w.slice(0, i) + " " + w.slice(i); }
+      }
+      if (best) out.push(best);
+    }
+    if (!whole) out = out.filter((v) => !v.includes(w));
+  }
+  closeCache.set(key, out);
+  return out;
+}
+// Build the regexes for one search term: main (exact-ish) and close (main + similar spellings).
+function termSpec(term, whole) {
+  const words = queryWords(term);
+  if (!words.length) return { main: /(?!)/g, close: null };
+  const lead = whole || term.startsWith(" ") ? B0 : "", trail = whole || term.endsWith(" ") ? B1 : "";
+  const wrap = (p) => `${lead}(?:${p})${trail}`;
+  let main = words.map(wordPat).join(SEP_WORDS);
+  if (words.length > 1 && vocab().get(words.join(""))) main += "|" + wordPat(words.join(""));   // "game changer" = "gamechanger"
+  main = wrap(main);
+  let fuzzy = false;
+  const parts = words.map((w) => {
+    const alts = closeWords(w, whole);
+    if (!alts.length) return wordPat(w);
+    fuzzy = true;
+    // suggested spellings start at a word edge; without "whole words" they may run on (changer -> changers)
+    return `(?:${wordPat(w)}|${alts.slice().sort((x, y) => y.length - x.length).map((v) => B0 + "(?:" + phrasePat(v) + ")" + (whole ? B1 : "")).join("|")})`;
+  });
+  return { main: new RegExp(main, "g"), close: fuzzy ? new RegExp(main + "|" + wrap(parts.join(SEP_WORDS)), "g") : null };
 }
 function findAll(text, re) {
   re.lastIndex = 0;
@@ -321,21 +419,56 @@ function highlight(text, res) {
 }
 
 /* ---------- search ---------- */
-const state = { terms: [], res: [], results: [], open: new Set() };
+const state = { terms: [], res: [], closeRes: [], results: [], close: [], chips: [], open: new Set() };
 const SHOW = 4, MAX_EXPANDED = 400, WIN = 120;
 
 function runSearch() {
   const q = $("q").value;
   const whole = $("whole").checked;
   state.terms = parseQuery(q);
-  state.res = state.terms.map((t) => matcher(t, whole));
+  const specs = state.terms.map((t) => termSpec(t, whole));
+  state.res = specs.map((s) => s.main);
+  state.closeRes = specs.map((s) => s.close || s.main);
   state.open.clear();
-  if (!state.terms.length) { state.results = []; renderResults(); return; }
+  state.results = collect(state.res, null);
+  state.close = [];
+  state.chips = [];
+  if (specs.some((s) => s.close)) {
+    const exact = new Map(state.results.map((r) => [r.ep.n, r.hits]));
+    state.close = collect(state.closeRes, exact);
+    // what the close matches actually were, e.g. "oscar 12" (spelling variants only)
+    const exactAt = state.res.map((re) => new RegExp(re.source, "y"));
+    const tally = new Map();
+    for (const r of state.close) for (const h of r.hits) {
+      const st = exactAt[h[2]];
+      st.lastIndex = h[0];
+      if (st.test(r.ep.lower)) continue;            // correctly spelt topic, not a variant
+      const raw = r.ep.lower.slice(h[0], h[0] + h[1]);
+      const k = h[2] + "|" + raw.replace(/[^a-z0-9]/g, "");
+      const shown = raw.replace(/'/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+      const e = tally.get(k) || { term: h[2], n: 0, forms: new Map() };
+      e.n++;
+      e.forms.set(shown, (e.forms.get(shown) || 0) + 1);
+      tally.set(k, e);
+    }
+    state.chips = [...tally.values()].sort((a, b) => b.n - a.n).slice(0, 6)
+      .map((e) => ({ term: e.term, n: e.n, text: [...e.forms].sort((a, b) => b[1] - a[1])[0][0] }));
+  }
+  renderResults();
+}
 
+// Find every episode that mentions all the terms. With `exclude`, keep only hits not already shown.
+function collect(resList, exclude) {
+  if (!resList.length) return [];
   const results = [];
   for (const ep of EPS) {
-    const per = state.res.map((re) => findAll(ep.lower, re));
+    let per = resList.map((re, ti) => findAll(ep.lower, re).map((h) => [h[0], h[1], ti]));
     if (per.some((a) => !a.length)) continue;
+    if (exclude) {
+      const ex = exclude.get(ep.n) || [];
+      per = per.map((a) => a.filter((h) => !overlaps(ex, h)));
+      if (!per.some((a) => a.length)) continue;
+    }
     const hits = per.flat().sort((a, b) => a[0] - b[0]);
     // Group nearby hits into one snippet so neighbouring snippets don't repeat text.
     const groups = [];
@@ -353,10 +486,14 @@ function runSearch() {
       if (e < full.length) { const sp = full.lastIndexOf(" ", e); if (sp > g.end) e = sp; }
       g.s = s; g.e = e; prevEnd = e;
     }
-    results.push({ ep, total: hits.length, counts: per.map((a) => a.length), groups });
+    results.push({ ep, total: hits.length, counts: per.map((a) => a.length), groups, hits });
   }
-  state.results = results;
-  renderResults();
+  return results;
+}
+function overlaps(sorted, h) {
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid][0] + sorted[mid][1] <= h[0]) lo = mid + 1; else hi = mid; }
+  return lo < sorted.length && sorted[lo][0] < h[0] + h[1];
 }
 
 function sortResults(list) {
@@ -368,7 +505,7 @@ function sortResults(list) {
   return out;
 }
 
-function snippetHTML(ep, g) {
+function snippetHTML(ep, g, res) {
   const full = ep.full, s = g.s, e = g.e;
   const seg = segAt(ep, g.start);
   const sec = ep.s[seg][0];
@@ -376,8 +513,23 @@ function snippetHTML(ep, g) {
   const yt = ytLink(ep, sec);
   return `<div class="hit">
     <button class="ts" type="button" data-ep="${ep.n}" data-seg="${seg}" aria-label="Read from ${clock(sec)} in episode ${ep.n}">${clock(sec)}</button>
-    <p class="snip">${highlight(text, state.res)}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}</p>
+    <p class="snip">${highlight(text, res)}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}</p>
   </div>`;
+}
+
+function cardHTML(r, res, key) {
+  const open = state.open.has(key);
+  const shown = open ? r.groups.slice(0, MAX_EXPANDED) : r.groups.slice(0, SHOW);
+  const breakdown = state.terms.length > 1 ? " · " + state.terms.map((t, i) => `${esc(t.trim())} ${r.counts[i]}`).join(", ") : "";
+  return `<article class="ep">
+    <div class="ep-head">
+      <h3 class="ep-title"><button type="button" data-open-ep="${r.ep.n}">${epLabel(r.ep)}</button></h3>
+      <span class="count"><b>${r.total}</b> mention${r.total === 1 ? "" : "s"}${breakdown}</span>
+    </div>
+    ${shown.map((g) => snippetHTML(r.ep, g, res)).join("")}
+    ${r.groups.length > SHOW ? `<button class="more" type="button" data-toggle="${key}">${open ? "show fewer" : `show all ${r.groups.length} moments`}</button>` : ""}
+    ${open && r.groups.length > MAX_EXPANDED ? `<p class="count">Showing the first ${MAX_EXPANDED}. Add another word to narrow it down.</p>` : ""}
+  </article>`;
 }
 
 function renderResults() {
@@ -386,26 +538,26 @@ function renderResults() {
   $("landing").hidden = hasQuery;
   if (!hasQuery) { box.innerHTML = ""; return; }
   const list = sortResults(state.results);
-  if (!list.length) {
+  const close = sortResults(state.close);
+  const quoted = state.terms.map((t) => "“" + esc(t.trim()) + "”").join(" + ");
+  if (!list.length && !close.length) {
     const multi = state.terms.length > 1;
-    box.innerHTML = `<div class="empty"><b>No matches for ${state.terms.map((t) => "“" + esc(t.trim()) + "”").join(" + ")}.</b><br>${multi ? "No single episode mentions all of those. Try fewer topics." : "Try a shorter phrase or a different spelling. The transcripts are machine-made, so names are sometimes misheard."}</div>`;
+    box.innerHTML = `<div class="empty"><b>No matches for ${quoted}.</b><br>${multi ? "No single episode mentions all of those. Try fewer topics." : "Try a shorter phrase or a different spelling. The transcripts are machine-made, so names are sometimes misheard."}</div>`;
     return;
   }
-  const total = list.reduce((n, r) => n + r.total, 0);
-  let html = `<p class="summary"><span class="big">${total.toLocaleString()}</span> mention${total === 1 ? "" : "s"} across <span class="big">${list.length}</span> of ${EPS.length} episodes</p>`;
-  for (const r of list) {
-    const open = state.open.has(r.ep.n);
-    const shown = open ? r.groups.slice(0, MAX_EXPANDED) : r.groups.slice(0, SHOW);
-    const breakdown = state.terms.length > 1 ? " · " + state.terms.map((t, i) => `${esc(t.trim())} ${r.counts[i]}`).join(", ") : "";
-    html += `<article class="ep">
-      <div class="ep-head">
-        <h3 class="ep-title"><button type="button" data-open-ep="${r.ep.n}">${epLabel(r.ep)}</button></h3>
-        <span class="count"><b>${r.total}</b> mention${r.total === 1 ? "" : "s"}${breakdown}</span>
-      </div>
-      ${shown.map((g) => snippetHTML(r.ep, g)).join("")}
-      ${r.groups.length > SHOW ? `<button class="more" type="button" data-toggle="${r.ep.n}">${open ? "show fewer" : `show all ${r.groups.length} moments`}</button>` : ""}
-      ${open && r.groups.length > MAX_EXPANDED ? `<p class="count">Showing the first ${MAX_EXPANDED}. Add another word to narrow it down.</p>` : ""}
-    </article>`;
+  let html = "";
+  if (list.length) {
+    const total = list.reduce((n, r) => n + r.total, 0);
+    html += `<p class="summary"><span class="big">${total.toLocaleString()}</span> mention${total === 1 ? "" : "s"} across <span class="big">${list.length}</span> of ${EPS.length} episodes</p>`;
+    html += list.map((r) => cardHTML(r, state.res, String(r.ep.n))).join("");
+  }
+  if (close.length) {
+    const chips = state.chips.map((c, i) => `<button class="chip" type="button" data-chip="${i}" title="Search for “${esc(c.text)}”">${esc(c.text)} <small>${c.n}</small></button>`).join("");
+    html += `<section class="close" aria-label="Close matches">
+      <h2 class="close-head">close matches</h2>
+      <p class="close-note">${list.length ? "Similar spellings that also came up:" : `No exact matches for ${quoted}. Did you mean:`} ${chips}</p>
+      ${close.map((r) => cardHTML(r, state.closeRes, "c" + r.ep.n)).join("")}
+    </section>`;
   }
   box.innerHTML = html;
 }
@@ -440,7 +592,7 @@ let marks = [], markIdx = -1;
 function renderLines(jump) {
   const ep = readerEp;
   const terms = parseQuery($("reader-find").value);
-  const res = terms.map((t) => matcher(t, $("whole").checked));
+  const res = terms.map((t) => { const s = termSpec(t, $("whole").checked); return s.close || s.main; });
   $("lines").innerHTML = ep.s.map((seg, i) => {
     const yt = ytLink(ep, seg[0]);
     return `<div class="line${i === readerTarget ? " target" : ""}" id="L${i}">
@@ -520,14 +672,22 @@ document.querySelector("nav").addEventListener("click", (e) => {
 });
 
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-ep][data-seg], [data-open-ep], [data-toggle]");
+  const t = e.target.closest("[data-ep][data-seg], [data-open-ep], [data-toggle], [data-chip]");
   if (!t) return;
   if (t.matches("[data-ep][data-seg]")) openReader(t.dataset.ep, t.dataset.seg);
   else if (t.matches("[data-open-ep]")) { readerTarget = null; openReader(t.dataset.openEp, null); }
   else if (t.matches("[data-toggle]")) {
-    const n = Number(t.dataset.toggle);
-    state.open.has(n) ? state.open.delete(n) : state.open.add(n);
+    const k = t.dataset.toggle;
+    state.open.has(k) ? state.open.delete(k) : state.open.add(k);
     renderResults();
+  } else if (t.matches("[data-chip]")) {
+    // swap the misspelt topic for the one clicked, keep any other topics
+    const c = state.chips[+t.dataset.chip];
+    const terms = state.terms.map((x) => x.trim());
+    terms[c.term] = c.text;
+    $("q").value = terms.join(" + ");
+    runSearch();
+    window.scrollTo(0, 0);
   }
 });
 document.addEventListener("keydown", (e) => {
@@ -543,6 +703,7 @@ window.addEventListener("hashchange", route);
   $("stats").textContent = `${EPS.length} episodes · ${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}m of audio · ${words.toLocaleString()} words searchable`;
   renderDir();
   route();
+  setTimeout(vocab, 600);   // word list for typo matching, built once in the background
 })();
 </script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "a9c49f236a164413b5ae45186740a99f"}'></script><!-- End Cloudflare Web Analytics -->
