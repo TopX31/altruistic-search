@@ -28,6 +28,10 @@ Everything in this folder builds one page. Whenever a file here changes on GitHu
 
 The site updates itself a minute or two later.
 
+## Release dates
+
+`dates.json` holds each episode's US Eastern release date, shown on the site as MM/DD/YYYY. For a new episode, add a line like `"50": "2026-11-17"` (year-month-day). Keep the commas between lines and no comma after the last one. Episodes without a date show their word count instead.
+
 ## Fixing misheard words
 
 Open `corrections.txt` on GitHub, click the pencil icon, and add a line:
