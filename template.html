@@ -363,8 +363,8 @@ const clock = (sec) => {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
   return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0");
 };
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const fmtDate = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? `${+m[3]} ${MONTHS[+m[2] - 1]} ${m[1]}` : ""; };
+// dates.json holds the US Eastern release date; shown US style, MM/DD/YYYY
+const fmtDate = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? `${m[2]}/${m[3]}/${m[1]}` : ""; };
 // release date when known, otherwise the word count
 const epMeta = (ep) => `${clock(ep.d)} · ${ep.dt ? fmtDate(ep.dt) : ep.words.toLocaleString() + " words"}`;
 const epLabel = (ep) => `<span class="ep-num">ep ${ep.n}</span> · ${esc(ep.t.toLowerCase())}`;
