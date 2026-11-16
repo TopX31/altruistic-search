@@ -170,6 +170,29 @@ mark.hl.current { outline: 3px solid var(--ink); outline-offset: 1px; }
 .line.target { background: var(--wash); box-shadow: -8px 0 0 var(--wash), 8px 0 0 var(--wash); }
 .line.target .ts { background: var(--red); color: var(--paper); }
 
+/* Saved bits */
+.save { border: 0; background: none; padding: 0 0 0 8px; font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.save:hover, .save:focus-visible { color: var(--red); }
+.save[aria-pressed="true"] { color: var(--red); }
+.line .save { opacity: 0.35; }
+.line:hover .save, .line .save:focus-visible, .line .save[aria-pressed="true"] { opacity: 1; }
+@media (hover: none) { .line .save { opacity: 0.6; } }
+nav .n { display: inline-block; min-width: 1.4em; margin-left: 5px; padding: 0 5px; border-radius: 99px; background: var(--red); color: #fff; font-size: 12px; line-height: 1.5; text-align: center; }
+nav button[aria-current="page"] .n { background: #fff; color: var(--red); }
+.saved-intro { margin: 26px 0 0; padding: 14px 18px; background: var(--wash); border-radius: 10px; font-size: 15px; }
+.saved-intro p { margin: 0 0 10px; }
+.saved-tools { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.saved-tools .btn { font-size: 14px; padding: 5px 13px; }
+.bits { margin-top: 10px; }
+.bit { padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.bit-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.bit-name { width: 100%; margin: 10px 0 6px; border: 2px solid var(--rule); border-radius: 8px; padding: 7px 12px; font: 700 16px/1.3 var(--body); color: var(--ink); background: var(--paper); }
+.bit-name:focus { border-color: var(--red); outline: none; }
+.bit-name::placeholder { color: var(--muted); font-weight: 500; }
+.bit-acts { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.bit-acts button { border: 0; background: none; padding: 0; font: inherit; color: var(--muted); cursor: pointer; margin-left: 10px; }
+.bit-acts button:hover { color: var(--red); }
+
 footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
 footer p { margin: 0 0 6px; max-width: 65ch; }
 
@@ -190,6 +213,7 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
     <nav aria-label="Sections">
       <button type="button" data-view="search" aria-current="page">search</button>
       <button type="button" data-view="episodes">episodes</button>
+      <button type="button" data-view="saved">saved<span class="n" id="saved-n" hidden></span></button>
     </nav>
   </header>
 
@@ -220,6 +244,7 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
             <li>Join up to 10 topics with <code>+</code> to find episodes that mention all of them, e.g. <code>epstein + trump</code>.</li>
             <li>Tick <b>whole words only</b> so <code>ian</code> doesn't match "villian". You can also use <code>~</code> as a forced space: <code>~ian~</code>.</li>
             <li>Click a timestamp to read that moment in the full transcript.</li>
+            <li>Hit <b>☆ save</b> on any result or transcript line to keep it in your <b>saved</b> tab.</li>
           </ul>
         </details>
         <p class="stats" id="stats"></p>
@@ -231,6 +256,25 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
     <!-- EPISODES VIEW -->
     <section id="view-episodes" hidden>
       <div class="dir" id="dir"></div>
+    </section>
+
+    <!-- SAVED VIEW -->
+    <section id="view-saved" hidden>
+      <div class="saved-intro">
+        <p>Your saved bits live in this browser only. They stay when you come back, but won't show on your other devices and disappear if you clear your browser data. Export a backup to keep them safe or move them to another device.</p>
+        <div class="saved-tools">
+          <button class="btn" type="button" id="saved-export">export backup</button>
+          <button class="btn" type="button" id="saved-import">import backup</button>
+          <input type="file" id="saved-file" accept=".json,application/json" hidden>
+          <label for="saved-sort" class="count">sort
+            <select id="saved-sort">
+              <option value="recent">recently saved</option>
+              <option value="ep">episode order</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="bits" id="bits"></div>
     </section>
 
     <!-- READER VIEW -->
@@ -513,7 +557,7 @@ function snippetHTML(ep, g, res) {
   const yt = ytLink(ep, sec);
   return `<div class="hit">
     <button class="ts" type="button" data-ep="${ep.n}" data-seg="${seg}" aria-label="Read from ${clock(sec)} in episode ${ep.n}">${clock(sec)}</button>
-    <p class="snip">${highlight(text, res)}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}</p>
+    <p class="snip">${highlight(text, res)}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}${saveBtn(ep, seg, true)}</p>
   </div>`;
 }
 
@@ -562,6 +606,110 @@ function renderResults() {
   box.innerHTML = html;
 }
 
+/* ---------- saved bits (kept in this browser only) ---------- */
+const SAVE_KEY = "ar-saved-v1";
+let SAVED = [];
+try { SAVED = JSON.parse(localStorage.getItem(SAVE_KEY) || "[]"); if (!Array.isArray(SAVED)) SAVED = []; } catch (e) { SAVED = []; }
+const bitId = (n, sec) => n + "@" + Math.round(sec);
+const isSaved = (n, sec) => SAVED.some((b) => b.id === bitId(n, sec));
+function storeSaved() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVED)); return true; }
+  catch (e) { alertOnce(); return false; }
+}
+let warned = false;
+function alertOnce() {
+  if (warned) return;
+  warned = true;
+  $("bits").insertAdjacentHTML("beforebegin", `<p class="empty">This browser isn't letting the site save anything (private browsing can do this), so saved bits will be lost when you leave.</p>`);
+}
+const segAtTime = (ep, sec) => {
+  let lo = 0, hi = ep.s.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ep.s[mid][0] <= sec + 0.5) lo = mid; else hi = mid - 1; }
+  return lo;
+};
+const bitText = (ep, seg) => ep.s.slice(seg, seg + 3).map((x) => x[1]).join(" ");
+function saveBtn(ep, seg, label) {
+  const sec = ep.s[seg][0], on = isSaved(ep.n, sec);
+  return ` <button class="save" type="button" data-save="${ep.n}|${seg}" aria-pressed="${on}" title="${on ? "Remove from saved" : "Save this bit"}">${on ? "★" : "☆"}${label ? (on ? " saved" : " save") : ""}</button>`;
+}
+function toggleSave(n, seg) {
+  const ep = EPS.find((e) => e.n === n);
+  if (!ep) return;
+  const sec = ep.s[seg][0], id = bitId(n, sec);
+  const i = SAVED.findIndex((b) => b.id === id);
+  if (i >= 0) SAVED.splice(i, 1);
+  else SAVED.unshift({ id, n, t: sec, text: bitText(ep, seg), name: "", at: Date.now() });
+  storeSaved();
+  // update every button for this moment without re-rendering
+  document.querySelectorAll(`[data-save="${n}|${seg}"]`).forEach((b) => {
+    const on = i < 0, label = !b.closest(".line");
+    b.setAttribute("aria-pressed", on);
+    b.title = on ? "Remove from saved" : "Save this bit";
+    b.textContent = (on ? "★" : "☆") + (label ? (on ? " saved" : " save") : "");
+  });
+  updateSavedCount();
+}
+function updateSavedCount() {
+  const el = $("saved-n");
+  el.hidden = !SAVED.length;
+  el.textContent = SAVED.length;
+}
+function renderSaved() {
+  const how = $("saved-sort").value;
+  const list = SAVED.slice();
+  if (how === "ep") list.sort((a, b) => b.n - a.n || a.t - b.t);
+  else list.sort((a, b) => b.at - a.at);
+  if (!list.length) { $("bits").innerHTML = `<div class="empty"><b>Nothing saved yet.</b><br>Hit ☆ save on any search result or transcript line and it'll show up here.</div>`; return; }
+  $("bits").innerHTML = list.map((b) => {
+    const ep = EPS.find((e) => e.n === b.n);
+    const seg = ep ? segAtTime(ep, b.t) : 0;
+    const text = ep ? bitText(ep, seg) : b.text;
+    const yt = ep ? ytLink(ep, b.t) : "";
+    return `<article class="bit">
+      <div class="bit-head">
+        <h3 class="ep-title">${ep ? `<button type="button" data-open-ep="${ep.n}">${epLabel(ep)}</button>` : `ep ${b.n}`}</h3>
+        <span class="bit-acts">${yt ? `<a href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}<button type="button" data-unsave="${esc(b.id)}">remove</button></span>
+      </div>
+      <input class="bit-name" type="text" maxlength="120" placeholder="name this bit…" value="${esc(b.name || "")}" data-name="${esc(b.id)}" aria-label="Name this bit">
+      <div class="hit">
+        ${ep ? `<button class="ts" type="button" data-ep="${ep.n}" data-seg="${seg}" aria-label="Read from ${clock(b.t)} in episode ${ep.n}">${clock(b.t)}</button>` : `<span class="ts">${clock(b.t)}</span>`}
+        <p class="snip">${esc(text)}</p>
+      </div>
+    </article>`;
+  }).join("");
+}
+function exportSaved() {
+  const blob = new Blob([JSON.stringify({ site: "searchaltright.net", saved: SAVED }, null, 1)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "altright-saved-bits.json";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function importSaved(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    let added = 0;
+    try {
+      const data = JSON.parse(r.result);
+      const list = Array.isArray(data) ? data : data.saved;
+      for (const b of list || []) {
+        if (!b || typeof b.n !== "number" || typeof b.t !== "number") continue;
+        const id = bitId(b.n, b.t);
+        if (SAVED.some((x) => x.id === id)) continue;
+        SAVED.push({ id, n: b.n, t: b.t, text: String(b.text || ""), name: String(b.name || "").slice(0, 120), at: Number(b.at) || Date.now() });
+        added++;
+      }
+    } catch (e) { alert("That file doesn't look like a saved-bits backup."); return; }
+    storeSaved();
+    updateSavedCount();
+    renderSaved();
+    alert(added ? `Added ${added} saved bit${added === 1 ? "" : "s"}.` : "Nothing new in that backup.");
+  };
+  r.readAsText(file);
+}
+
 /* ---------- episode directory ---------- */
 function renderDir() {
   const list = EPS.slice().sort((a, b) => b.n - a.n);
@@ -597,7 +745,7 @@ function renderLines(jump) {
     const yt = ytLink(ep, seg[0]);
     return `<div class="line${i === readerTarget ? " target" : ""}" id="L${i}">
       <button class="ts" type="button" data-copy-seg="${i}" aria-label="Line at ${clock(seg[0])}">${clock(seg[0])}</button>
-      <p>${res.length ? highlight(seg[1], res) : esc(seg[1])}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener" style="font-size:13px;font-weight:700">↗</a>` : ""}</p>
+      <p>${res.length ? highlight(seg[1], res) : esc(seg[1])}${yt ? ` <a class="yt" href="${yt}" target="_blank" rel="noopener" style="font-size:13px;font-weight:700">↗</a>` : ""}${saveBtn(ep, i, false)}</p>
     </div>`;
   }).join("");
   marks = [...$("lines").querySelectorAll("mark.hl")];
@@ -630,9 +778,10 @@ function updateFindCount() {
 /* ---------- views ---------- */
 let lastView = "search";
 function show(view) {
-  for (const v of ["search", "episodes", "reader"]) $("view-" + v).hidden = v !== view;
+  for (const v of ["search", "episodes", "saved", "reader"]) $("view-" + v).hidden = v !== view;
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
   if (view !== "reader") { lastView = view; readerTarget = null; }
+  if (view === "saved") renderSaved();
 }
 function route() {
   if (suppressHash) { suppressHash = false; return; }
@@ -640,6 +789,7 @@ function route() {
   const m = /^ep(\d+)$/.exec(h);
   if (m) openReader(m[1], null);
   else if (h === "episodes") show("episodes");
+  else if (h === "saved") show("saved");
   else show("search");
 }
 
@@ -672,6 +822,12 @@ document.querySelector("nav").addEventListener("click", (e) => {
 });
 
 document.addEventListener("click", (e) => {
+  const s = e.target.closest("[data-save], [data-unsave]");
+  if (s) {
+    if (s.dataset.save) { const [n, seg] = s.dataset.save.split("|").map(Number); toggleSave(n, seg); }
+    else { SAVED = SAVED.filter((b) => b.id !== s.dataset.unsave); storeSaved(); updateSavedCount(); renderSaved(); }
+    return;
+  }
   const t = e.target.closest("[data-ep][data-seg], [data-open-ep], [data-toggle], [data-chip]");
   if (!t) return;
   if (t.matches("[data-ep][data-seg]")) openReader(t.dataset.ep, t.dataset.seg);
@@ -695,6 +851,23 @@ document.addEventListener("keydown", (e) => {
   if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openReader(row.dataset.openEp, null); }
 });
 window.addEventListener("hashchange", route);
+$("bits").addEventListener("change", (e) => {
+  const id = e.target.dataset.name;
+  if (!id) return;
+  const b = SAVED.find((x) => x.id === id);
+  if (b) { b.name = e.target.value.trim().slice(0, 120); storeSaved(); }
+});
+$("saved-sort").addEventListener("change", renderSaved);
+$("saved-export").addEventListener("click", exportSaved);
+$("saved-import").addEventListener("click", () => $("saved-file").click());
+$("saved-file").addEventListener("change", (e) => { if (e.target.files[0]) importSaved(e.target.files[0]); e.target.value = ""; });
+// keep tabs in sync if the site is open twice
+window.addEventListener("storage", (e) => {
+  if (e.key !== SAVE_KEY) return;
+  try { SAVED = JSON.parse(e.newValue || "[]"); } catch (err) { return; }
+  updateSavedCount();
+  if (!$("view-saved").hidden) renderSaved();
+});
 
 /* ---------- start ---------- */
 (function init() {
@@ -702,6 +875,7 @@ window.addEventListener("hashchange", route);
   const secs = EPS.reduce((n, e) => n + e.d, 0);
   $("stats").textContent = `${EPS.length} episodes · ${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}m of audio · ${words.toLocaleString()} words searchable`;
   renderDir();
+  updateSavedCount();
   route();
   setTimeout(vocab, 600);   // word list for typo matching, built once in the background
 })();
