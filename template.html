@@ -139,6 +139,33 @@ mark.hl {
 @media (prefers-reduced-motion: reduce) { mark.hl { animation: none; background-image: none; } }
 
 /* Landing episode list */
+/* Lean landing: big search, latest episode, saved bits */
+.hero-line { display: none; margin: 0 0 12px; font: 800 clamp(20px, 3.4vw, 26px)/1.15 var(--display); letter-spacing: -0.02em; }
+body.is-landing .hero-line { display: block; }
+body.is-landing .search { margin-top: clamp(40px, 9vh, 90px); }
+body.is-landing .search input[type="search"] { padding: 20px 20px; font-size: clamp(20px, 3vw, 24px); }
+body.is-landing .search .go { padding: 0 28px; font-size: 20px; }
+.latest { margin-top: 44px; padding: 22px 24px; background: var(--wash); border-radius: 12px; }
+.latest .landing-head { margin: 0 0 12px; }
+.latest-row { display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; align-items: center; }
+.latest-num { font: 900 clamp(56px, 10vw, 84px)/0.85 var(--display); color: var(--red); letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.latest-title { margin: 0; font: 800 clamp(22px, 3.8vw, 30px)/1.1 var(--display); letter-spacing: -0.025em; text-transform: lowercase; text-wrap: balance; }
+.latest .stats { margin: 6px 0 0; }
+.latest-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+.latest-acts .btn { font-size: 14px; padding: 6px 14px; }
+.latest-acts .btn.solid { background: var(--red); color: var(--paper); }
+.latest-acts .btn.solid:hover { background: var(--red-deep); border-color: var(--red-deep); }
+.jump { margin-top: 34px; }
+.jump-head { display: flex; justify-content: space-between; align-items: baseline; }
+.jump-head a { font-size: 14px; font-weight: 700; }
+.jump-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
+.jump-card { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 2px solid var(--rule); border-radius: 10px; cursor: pointer; }
+.jump-card:hover, .jump-card:focus-visible { border-color: var(--red); }
+.jump-name { font: 800 17px/1.2 var(--display); letter-spacing: -0.01em; text-transform: lowercase; }
+.jump-name.named::before { content: "★ "; color: var(--red); }
+.jump-text { font-size: 14px; line-height: 1.45; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.jump-meta { margin-top: auto; font-size: 13px; font-weight: 700; color: var(--red); font-variant-numeric: tabular-nums; }
+.browse { margin: 34px 0 0; }
 .landing-head { margin: 40px 0 0; font: 800 13px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
 .btn { border: 2px solid var(--red); background: var(--paper); color: var(--red); font-weight: 800; padding: 7px 16px; border-radius: 999px; cursor: pointer; text-transform: lowercase; text-decoration: none; display: inline-block; font-size: 15px; }
 .btn:hover { background: var(--wash); }
@@ -204,6 +231,8 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
 @media (max-width: 520px) {
   .hit, .line { grid-template-columns: 62px 1fr; gap: 10px; }
   .search .go { padding: 0 14px; }
+  body.is-landing .search .go { padding: 0 16px; font-size: 17px; }
+  body.is-landing .search input[type="search"] { padding: 17px 14px; font-size: 19px; }
   .dir-row { grid-template-columns: 48px 1fr; }
   .dir-meta { grid-column: 2; text-align: left; }
 }
@@ -211,7 +240,7 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
 [hidden] { display: none !important; }
 </style>
 </head>
-<body>
+<body class="is-landing">
 <div class="wrap">
   <header>
     <a class="wordmark" href="#" id="home"><span>altruistic</span><span>righteousness</span></a>
@@ -226,6 +255,7 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
     <!-- SEARCH VIEW -->
     <section id="view-search">
       <div class="search">
+        <p class="hero-line">Find any bit. Every word of every episode.</p>
         <form id="search-form" role="search">
           <label class="sr" for="q">Search the transcripts</label>
           <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="search every episode, e.g. dark game changer">
@@ -255,7 +285,11 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
         <p class="stats" id="stats"></p>
       </div>
       <div id="results" aria-live="polite"></div>
-      <div id="landing"><h2 class="landing-head">episodes</h2><div class="dir" id="landing-dir"></div></div>
+      <div id="landing">
+        <div id="latest"></div>
+        <div class="jump" id="jump" hidden></div>
+        <p class="browse"><a class="btn" href="#episodes" id="browse-all">browse all episodes →</a></p>
+      </div>
     </section>
 
     <!-- EPISODES VIEW -->
@@ -585,6 +619,7 @@ function renderResults() {
   const box = $("results");
   const hasQuery = state.terms.length > 0;
   $("landing").hidden = hasQuery;
+  document.body.classList.toggle("is-landing", !hasQuery);
   if (!hasQuery) { box.innerHTML = ""; return; }
   const list = sortResults(state.results);
   const close = sortResults(state.close);
@@ -656,6 +691,7 @@ function toggleSave(n, seg) {
   updateSavedCount();
 }
 function updateSavedCount() {
+  renderLanding();
   const el = $("saved-n");
   el.hidden = !SAVED.length;
   el.textContent = SAVED.length;
@@ -721,10 +757,42 @@ function importSaved(file) {
   r.readAsText(file);
 }
 
+/* ---------- landing ---------- */
+function renderLanding() {
+  const ep = EPS.reduce((a, b) => (b.n > a.n ? b : a), EPS[0]);
+  const yt = ytLink(ep, 0);
+  $("latest").innerHTML = `<article class="latest">
+    <h2 class="landing-head">latest episode</h2>
+    <div class="latest-row">
+      <div class="latest-num">${ep.n}</div>
+      <div>
+        <h3 class="latest-title">${esc(ep.t.toLowerCase())}</h3>
+        <p class="stats">${clock(ep.d)} · ${ep.words.toLocaleString()} words</p>
+      </div>
+    </div>
+    <p class="latest-acts"><button class="btn solid" type="button" data-open-ep="${ep.n}">read the transcript</button>${yt ? `<a class="btn" href="${yt}" target="_blank" rel="noopener">watch on youtube ↗</a>` : ""}</p>
+  </article>`;
+  $("browse-all").textContent = `browse all ${EPS.length} episodes →`;
+  const recent = SAVED.slice().sort((a, b) => b.at - a.at).slice(0, 3);
+  $("jump").hidden = !recent.length;
+  $("jump").innerHTML = !recent.length ? "" : `
+    <div class="jump-head"><h2 class="landing-head" style="margin:0">your saved bits</h2><a href="#saved">see all ${SAVED.length} →</a></div>
+    <div class="jump-grid">${recent.map((b) => {
+      const e = EPS.find((x) => x.n === b.n);
+      const seg = e ? segAtTime(e, b.t) : 0;
+      const text = e ? bitText(e, seg) : b.text;
+      return `<button class="jump-card" type="button" ${e ? `data-ep="${e.n}" data-seg="${seg}"` : ""}>
+        <span class="jump-name${b.name ? " named" : ""}">${esc(b.name || (e ? e.t.toLowerCase() : "ep " + b.n))}</span>
+        <span class="jump-text">${esc(text)}</span>
+        <span class="jump-meta">ep ${b.n} · ${clock(b.t)}</span>
+      </button>`;
+    }).join("")}</div>`;
+}
+
 /* ---------- episode directory ---------- */
 function renderDir() {
   const list = EPS.slice().sort((a, b) => b.n - a.n);
-  $("dir").innerHTML = $("landing-dir").innerHTML = list.map((ep) => `
+  $("dir").innerHTML = list.map((ep) => `
     <div class="dir-row" role="button" tabindex="0" data-open-ep="${ep.n}">
       <div class="dir-num">${ep.n}</div>
       <div class="dir-title">${esc(ep.t.toLowerCase())}</div>
@@ -868,7 +936,7 @@ function finishName(input, keep) {
   if (editingBit !== input.dataset.name) return;
   editingBit = null;
   const b = SAVED.find((x) => x.id === input.dataset.name);
-  if (b && keep) { b.name = input.value.trim().slice(0, 120); storeSaved(); }
+  if (b && keep) { b.name = input.value.trim().slice(0, 120); storeSaved(); renderLanding(); }
   renderSaved();
 }
 $("bits").addEventListener("keydown", (e) => {
