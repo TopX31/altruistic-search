@@ -76,6 +76,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; a
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-top: 10px; font-size: 14px; color: var(--muted); }
 .controls label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .controls input[type="checkbox"] { accent-color: var(--red); width: 16px; height: 16px; }
+.ep-controls { margin-top: 26px; }
 .controls select, .saved-tools select { border: 1px solid var(--rule); border-radius: 4px; padding: 3px 6px; background: var(--paper); color: var(--ink); color-scheme: light; }
 .saved-tools .count { display: inline-flex; align-items: center; gap: 6px; }
 details.tips { font-size: 14px; color: var(--muted); }
@@ -283,6 +284,14 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
 
     <!-- EPISODES VIEW -->
     <section id="view-episodes" hidden>
+      <div class="controls ep-controls">
+        <label for="ep-sort">sort
+          <select id="ep-sort">
+            <option value="new">newest first</option>
+            <option value="old">oldest first</option>
+          </select>
+        </label>
+      </div>
       <div class="dir" id="dir"></div>
     </section>
 
@@ -770,7 +779,7 @@ function renderDir() {
       <div class="dir-title">${esc(ep.t.toLowerCase())}</div>
       <div class="dir-meta">${clock(ep.d)} · ${ep.words.toLocaleString()} words</div>
     </div>`;
-  $("dir").innerHTML = list.map(row).join("");
+  $("dir").innerHTML = ($("ep-sort").value === "old" ? list.slice().reverse() : list).map(row).join("");
   $("landing-dir").innerHTML = list.slice(1, 6).map(row).join("");   // latest has its own card
   $("browse-all").textContent = `see all ${EPS.length} episodes →`;
 }
@@ -921,6 +930,11 @@ $("bits").addEventListener("keydown", (e) => {
 });
 $("bits").addEventListener("focusout", (e) => { if (e.target.matches(".bit-name")) finishName(e.target, true); });
 $("saved-sort").addEventListener("change", renderSaved);
+try { if (localStorage.getItem("ar-ep-sort") === "old") $("ep-sort").value = "old"; } catch (e) {}
+$("ep-sort").addEventListener("change", () => {
+  try { localStorage.setItem("ar-ep-sort", $("ep-sort").value); } catch (e) {}
+  renderDir();
+});
 $("saved-export").addEventListener("click", exportSaved);
 $("saved-import").addEventListener("click", () => $("saved-file").click());
 $("saved-file").addEventListener("change", (e) => { if (e.target.files[0]) importSaved(e.target.files[0]); e.target.value = ""; });
