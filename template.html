@@ -841,7 +841,9 @@ function updateFindCount() {
 /* ---------- views ---------- */
 let lastView = "search";
 function show(view) {
+  const changed = $("view-" + view).hidden;
   for (const v of ["search", "episodes", "saved", "reader"]) $("view-" + v).hidden = v !== view;
+  if (changed && (view === "episodes" || view === "saved")) window.scrollTo(0, 0);   // open lists at the top
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
   if (view !== "reader") { lastView = view; readerTarget = null; }
   if (view === "saved") renderSaved();
