@@ -363,6 +363,10 @@ const clock = (sec) => {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
   return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0");
 };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmtDate = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? `${+m[3]} ${MONTHS[+m[2] - 1]} ${m[1]}` : ""; };
+// release date when known, otherwise the word count
+const epMeta = (ep) => `${clock(ep.d)} · ${ep.dt ? fmtDate(ep.dt) : ep.words.toLocaleString() + " words"}`;
 const epLabel = (ep) => `<span class="ep-num">ep ${ep.n}</span> · ${esc(ep.t.toLowerCase())}`;
 const segAt = (ep, pos) => {
   let lo = 0, hi = ep.offs.length - 1;
@@ -763,7 +767,7 @@ function renderLanding() {
       <div class="latest-num">${ep.n}</div>
       <div>
         <h3 class="latest-title">${esc(ep.t.toLowerCase())}</h3>
-        <p class="stats">${clock(ep.d)} · ${ep.words.toLocaleString()} words</p>
+        <p class="stats">${epMeta(ep)}</p>
       </div>
     </div>
     <p class="latest-acts"><button class="btn solid" type="button" data-open-ep="${ep.n}">read transcript</button>${yt ? `<a class="btn" href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}</p>
@@ -777,7 +781,7 @@ function renderDir() {
     <div class="dir-row" role="button" tabindex="0" data-open-ep="${ep.n}">
       <div class="dir-num">${ep.n}</div>
       <div class="dir-title">${esc(ep.t.toLowerCase())}</div>
-      <div class="dir-meta">${clock(ep.d)} · ${ep.words.toLocaleString()} words</div>
+      <div class="dir-meta">${epMeta(ep)}</div>
     </div>`;
   $("dir").innerHTML = ($("ep-sort").value === "old" ? list.slice().reverse() : list).map(row).join("");
   $("landing-dir").innerHTML = list.slice(1, 6).map(row).join("");   // latest has its own card

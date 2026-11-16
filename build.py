@@ -108,6 +108,11 @@ def main():
     replace, delete = load_corrections()
     total_changes = total_trimmed = 0
     yt = {}
+    # Release dates: dates.json, e.g. {"49": "2026-11-10"}
+    dates = {}
+    dpath = ROOT / "dates.json"
+    if dpath.exists():
+        dates = {str(k): str(v).strip() for k, v in json.loads(dpath.read_text(encoding="utf-8")).items()}
     cfg = ROOT / "episodes.json"
     if cfg.exists():
         for k, v in json.loads(cfg.read_text(encoding="utf-8")).items():
@@ -144,7 +149,7 @@ def main():
         segs, trimmed = trim_repeats(segs)
         total_changes += changes
         total_trimmed += trimmed
-        episodes.append({"n": num, "t": title, "d": round(end), "yt": yt.get(str(num), ""), "s": segs})
+        episodes.append({"n": num, "t": title, "d": round(end), "yt": yt.get(str(num), ""), "dt": dates.get(str(num), ""), "s": segs})
         print(f"Episode {num}: {title}  ({len(segs)} lines, {int(end // 60)} min)")
 
     episodes.sort(key=lambda e: e["n"])
