@@ -154,9 +154,6 @@ mark.hl {
 .land-head .landing-head { margin: 0; }
 .land-head a { font-size: 14px; font-weight: 700; }
 .land-list { margin-top: 10px; }
-.dir-title.bit-row { font: 700 17px/1.3 var(--body); letter-spacing: 0; text-transform: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dir-title.bit-row.named { font: 800 18px/1.25 var(--display); text-transform: lowercase; }
-.dir-title.bit-row.named::before { content: "★ "; color: var(--red); }
 .see-all { margin: 16px 0 0; }
 .landing-head { margin: 40px 0 0; font: 800 13px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
 .btn { border: 2px solid var(--red); background: var(--paper); color: var(--red); font-weight: 800; padding: 7px 16px; border-radius: 999px; cursor: pointer; text-transform: lowercase; text-decoration: none; display: inline-block; font-size: 15px; }
@@ -223,7 +220,6 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
 @media (max-width: 520px) {
   .latest { padding: 16px 16px 18px; }
   .latest-row { gap: 4px 14px; }
-  .dir-title.bit-row { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .hit, .line { grid-template-columns: 62px 1fr; gap: 10px; }
   .search .go { padding: 0 14px; }
   .dir-row { grid-template-columns: 48px 1fr; }
@@ -279,7 +275,6 @@ footer p { margin: 0 0 6px; max-width: 65ch; }
       <div id="results" aria-live="polite"></div>
       <div id="landing">
         <div id="latest"></div>
-        <div id="land-saved" hidden></div>
         <div class="land-head"><h2 class="landing-head">recent episodes</h2></div>
         <div class="dir land-list" id="landing-dir"></div>
         <p class="see-all"><a class="btn" href="#episodes" id="browse-all">see all episodes →</a></p>
@@ -684,7 +679,6 @@ function toggleSave(n, seg) {
   updateSavedCount();
 }
 function updateSavedCount() {
-  renderLanding();
   const el = $("saved-n");
   el.hidden = !SAVED.length;
   el.textContent = SAVED.length;
@@ -765,20 +759,6 @@ function renderLanding() {
     </div>
     <p class="latest-acts"><button class="btn solid" type="button" data-open-ep="${ep.n}">read transcript</button>${yt ? `<a class="btn" href="${yt}" target="_blank" rel="noopener">watch ↗</a>` : ""}</p>
   </article>`;
-  const recent = SAVED.slice().sort((a, b) => b.at - a.at).slice(0, 3);
-  $("land-saved").hidden = !recent.length;
-  $("land-saved").innerHTML = !recent.length ? "" : `
-    <div class="land-head"><h2 class="landing-head">your saved bits</h2><a href="#saved">see all ${SAVED.length} →</a></div>
-    <div class="dir land-list">${recent.map((b) => {
-      const e = EPS.find((x) => x.n === b.n);
-      const seg = e ? segAtTime(e, b.t) : 0;
-      const text = e ? bitText(e, seg) : b.text;
-      return `<div class="dir-row" role="button" tabindex="0" ${e ? `data-ep="${e.n}" data-seg="${seg}"` : ""}>
-        <div class="dir-num">${b.n}</div>
-        <div class="dir-title bit-row${b.name ? " named" : ""}">${esc(b.name || text)}</div>
-        <div class="dir-meta">${clock(b.t)}</div>
-      </div>`;
-    }).join("")}</div>`;
 }
 
 /* ---------- episode directory ---------- */
@@ -931,7 +911,7 @@ function finishName(input, keep) {
   if (editingBit !== input.dataset.name) return;
   editingBit = null;
   const b = SAVED.find((x) => x.id === input.dataset.name);
-  if (b && keep) { b.name = input.value.trim().slice(0, 120); storeSaved(); renderLanding(); }
+  if (b && keep) { b.name = input.value.trim().slice(0, 120); storeSaved(); }
   renderSaved();
 }
 $("bits").addEventListener("keydown", (e) => {
@@ -958,6 +938,7 @@ window.addEventListener("storage", (e) => {
   const secs = EPS.reduce((n, e) => n + e.d, 0);
   $("stats").textContent = `${EPS.length} episodes · ${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}m of audio · ${words.toLocaleString()} words searchable`;
   renderDir();
+  renderLanding();
   updateSavedCount();
   route();
   setTimeout(vocab, 600);   // word list for typo matching, built once in the background
