@@ -1,62 +1,41 @@
-# Altruistic Righteousness transcript search
+# searchaltright
 
-A fan-made search engine for the Altruistic Righteousness podcast. Not affiliated with the show.
+fan-made transcript search for the altruistic righteousness podcast. not affiliated with the show.
 
-**Live at https://searchaltright.net**
+live at https://searchaltright.net
 
-Everything in this folder builds one page. Whenever a file here changes on GitHub, the site rebuilds and goes live by itself within a couple of minutes (see the **Actions** tab to watch it happen).
+pushing to main rebuilds the site automatically.
 
-## What's in here
+## files
 
-| File / folder | What it is | Do you edit it? |
-| --- | --- | --- |
-| `srt/` | One transcript per episode | Yes, add new ones here |
-| `corrections.txt` | Misheard words to fix, e.g. `Akash => Aakash` | Yes |
-| `episodes.json` | YouTube link for each episode | Yes |
-| `titles.txt` | Display titles with characters Windows won't allow in file names (like `?`) | Rarely |
-| `static/` | Site icon (Safari tab, iPhone home screen) and the link-preview image | Only to change them |
-| `template.html` | The page design and search code | Only to change the site itself |
-| `build.py` | Combines everything into the site | No |
-| `.github/workflows/deploy.yml` | Tells GitHub to rebuild on every change | No |
+- `srt/` - episode transcripts, named like `Episode 49 - Title.srt`
+- `episodes.json` - youtube links
+- `dates.json` - release dates (US eastern, `"50": "2026-11-17"`)
+- `titles.txt` - titles with characters windows won't allow in filenames
+- `corrections.txt` - fixes for misheard words
+- `static/` - icons and link preview image
+- `template.html` - the page
+- `build.py` - builds `index.html` and `data.js`
 
-## Adding a new episode (weekly)
+## new episode
 
-1. Transcribe it with `Transcribe.bat` on the PC.
-2. Make sure the file is named like `Episode 49 - Episode Title.srt`. The site reads the number and title from the name.
-3. On GitHub, open the `srt` folder, click **Add file > Upload files**, drag the .srt in, and click **Commit changes**.
-4. Optional: add the YouTube link to `episodes.json` (see below).
+1. transcribe it
+2. upload the srt to `srt/`
+3. add the youtube link to `episodes.json` and the date to `dates.json`
 
-The site updates itself a minute or two later.
+## corrections
 
-## Release dates
-
-`dates.json` holds each episode's US Eastern release date, shown on the site as MM/DD/YYYY. For a new episode, add a line like `"50": "2026-11-17"` (year-month-day). Keep the commas between lines and no comma after the last one. Episodes without a date show their word count instead.
-
-## Fixing misheard words
-
-Open `corrections.txt` on GitHub, click the pencil icon, and add a line:
+one per line in `corrections.txt`:
 
 ```
-wrong spelling => Right Spelling
-DELETE: a line Whisper made up
+wrong => right
+DELETE: line to remove
 ```
 
-Capitals don't matter and it only matches whole words (possessives like "Akash's" are included). The .srt files are never changed, so deleting a line undoes it. Use the site's search to find mistakes: search the wrong and right spellings and compare the counts.
+whole words, not case sensitive. the srt files themselves aren't changed.
 
-## Automatic clean-up
+the build also trims lines whisper repeats over and over.
 
-When Whisper gets stuck and writes the same line over and over (or one word dozens of times in a row), the build trims it down to three repeats automatically. Nothing to do on your end.
+## run locally
 
-## Adding YouTube links
-
-Open `episodes.json`, click the pencil icon, and paste each episode's link between the quotes:
-
-```
-"48": "https://www.youtube.com/watch?v=XXXXXXXXXXX",
-```
-
-Full links or just the video ID both work. Keep the commas between lines and no comma after the last one. Once a link is in, every timestamp for that episode gets a "watch" link that opens YouTube at that moment.
-
-## Testing on your own computer (optional)
-
-With Python installed, run `python build.py` in this folder, then open the `index.html` it creates.
+`python build.py`, then open `index.html`.
